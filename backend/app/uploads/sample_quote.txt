@@ -1,0 +1,17 @@
+Supplier: Tata Steel
+
+Material: Cold Rolled Steel
+
+Price Per Unit: 420 INR
+
+Lead Time: 12 Days
+
+Payment Terms: Net 30
+
+Warranty: 24 Months
+
+Country: India
+
+Incoterms: FOB
+
+Minimum Order Quantity: 1000 Units
