@@ -1,0 +1,19 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+venv/
+__pycache__/
+*.pyc
+.env
+node_modules/
+dist/
+build/
+app/uploads/
+*.db
+.vscode/
+.idea/
+backend/.env
+__pycache__/
+*.pyc
+.env
+venv/
+node_modules/
+Procurement_Report.pdf
