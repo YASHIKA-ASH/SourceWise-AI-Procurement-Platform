@@ -15,3 +15,14 @@ class Supplier(Base):
     on_time_delivery = Column(Float, nullable=False)
     sustainability_score = Column(Float, nullable=False)
     country = Column(String, nullable=False)
+    supplier_rating = Column(Float, default=4.5)
+
+capacity_per_month = Column(Integer, default=50000)
+
+certification = Column(String, default="ISO 9001")
+
+response_time = Column(Integer, default=24)
+supplier_rating = Column(Float, default=4.5)
+capacity_per_month = Column(Integer, default=50000)
+certification = Column(String, default="ISO 9001")
+response_time = Column(Integer, default=24)
