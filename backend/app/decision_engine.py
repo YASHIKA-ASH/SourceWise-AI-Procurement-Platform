@@ -4,7 +4,6 @@ from app.services.risk import calculate_risk
 from app.services.scoring import procurement_score
 
 def evaluate(db: Session, quantity, inventory, daily_usage):
-    scenario = data.scenario
     suppliers = db.query(Supplier).all()
     
     inventory_days = inventory / daily_usage
