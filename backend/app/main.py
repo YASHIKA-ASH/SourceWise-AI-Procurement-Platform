@@ -13,6 +13,12 @@ from app.routers.supplier import router as supplier_router
 from app.routers.upload import router as upload_router
 from app.routers.supplier import router as suppliers_router
 from app.routers.ranking import router as ranking_router
+from app.models import supplier
+#from app.models import metrics
+from app.database.database import engine
+from app.database.database import Base
+
+#Base.metadata.create_all(bind=engine)
 app = FastAPI(title="SourceWise")
 app.include_router(analytics_router)
 app.include_router(report_router)
@@ -20,7 +26,10 @@ app.include_router(supplier_router)
 app.include_router(ranking_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+    "http://localhost:5173",
+    "https://source-wise-ai-procurement-platform-fawn.vercel.app"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
