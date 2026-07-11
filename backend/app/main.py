@@ -15,11 +15,14 @@ from app.routers.supplier import router as suppliers_router
 from app.routers.ranking import router as ranking_router
 from app.models import supplier
 #from app.models import metrics
+from app.middleware.timing import TimingMiddleware
+from app.models.performance_log import PerformanceLog
 from app.database.database import engine
 from app.database.database import Base
 
 #Base.metadata.create_all(bind=engine)
 app = FastAPI(title="SourceWise")
+app.add_middleware(TimingMiddleware)
 app.include_router(analytics_router)
 app.include_router(report_router)
 app.include_router(supplier_router)
