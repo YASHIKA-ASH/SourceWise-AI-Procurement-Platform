@@ -19,14 +19,17 @@ from app.middleware.timing import TimingMiddleware
 from app.models.performance_log import PerformanceLog
 from app.database.database import engine
 from app.database.database import Base
+from app.routers.metrics import router as metrics_router
 
-#Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="SourceWise")
+Base.metadata.create_all(bind=engine)
 app.add_middleware(TimingMiddleware)
 app.include_router(analytics_router)
 app.include_router(report_router)
 app.include_router(supplier_router)
 app.include_router(ranking_router)
+app.include_router(metrics_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

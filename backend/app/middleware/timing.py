@@ -1,5 +1,10 @@
 import time
+
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.database.database import SessionLocal
+from app.services.logger import log_request
+
 
 class TimingMiddleware(BaseHTTPMiddleware):
 
@@ -9,9 +14,19 @@ class TimingMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
-        end = time.perf_counter()
+        latency = (time.perf_counter() - start) * 1000
 
-        latency = (end - start) * 1000
+        db = SessionLocal()
+
+        try:
+            log_request(
+                db=db,
+                endpoint=request.url.path,
+                latency=round(latency, 2),
+                status_code=response.status_code
+            )
+        finally:
+            db.close()
 
         response.headers["X-Response-Time"] = f"{latency:.2f} ms"
 
