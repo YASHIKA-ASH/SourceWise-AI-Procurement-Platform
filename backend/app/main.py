@@ -7,12 +7,14 @@ from app.decision_engine import evaluate
 from app.services.insights import generate_insights
 from sqlalchemy.orm import Session
 from fastapi import Depends
+from app.routers.auth import router as auth_router
 from app.routers.dashboard import router as dashboard_router
 from app.database.database import get_db
 from app.routers.supplier import router as supplier_router
 from app.routers.upload import router as upload_router
 from app.routers.ranking import router as ranking_router
 #from app.models import metrics
+import os
 from app.routers.copilot import router as copilot_router
 from app.rag.indexer import build_indexes
 from app.middleware.timing import TimingMiddleware
@@ -26,16 +28,36 @@ from app.routers.redis import router as redis_router
 from app.routers.rag import router as rag_router
 from app.routers.search import router as search_router
 from app.routers.chat import router as chat_router
-from app.rag.indexer import build_indexes
 import json
 from app.database.database import SessionLocal
 from app.models.supplier import Supplier
 from app.database.redis import redis_client
 from time import perf_counter
+from app.routers.user import router as user_router
 app = FastAPI(title="SourceWise")
 
+@app.on_event("startup")
+def startup_event():
 
-Base.metadata.create_all(bind=engine)
+    print("STEP 1")
+
+    db = SessionLocal()
+
+    print("STEP 2")
+
+    try:
+        print("STEP 3")
+
+        suppliers = db.query(Supplier).all()
+
+        print(f"STEP 4 - Loaded {len(suppliers)} suppliers")
+
+    finally:
+        db.close()
+
+    print("STEP 5")
+
+
 app.include_router(copilot_router)
 app.add_middleware(TimingMiddleware)
 app.include_router(analytics_router)
@@ -49,6 +71,8 @@ app.include_router(chat_router)
 app.include_router(dashboard_router)
 app.include_router(risk.router)
 app.include_router(cost_optimizer.router)
+app.include_router(auth_router)
+app.include_router(user_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -61,10 +85,14 @@ app.add_middleware(
 )
 app.include_router(upload_router)
 
+if os.getenv("RENDER") is None:
+    Base.metadata.create_all(bind=engine)
+
 class Procurement(BaseModel):
     quantity: int
     inventory: int
     daily_usage: int
+
 
 
 @app.get("/")

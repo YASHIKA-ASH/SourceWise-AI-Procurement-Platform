@@ -5,6 +5,8 @@ from app.database.database import get_db
 from app.schemas.supplier import SupplierCreate, SupplierResponse
 from app.services.supplier import create_supplier, get_suppliers
 from app.models.supplier import Supplier
+from app.utils.explainability import generate_explanation
+from app.utils.score_breakdown import generate_score_breakdown
 router = APIRouter(
     prefix="/suppliers",
     tags=["Suppliers"]
@@ -47,11 +49,13 @@ def supplier_analytics(db: Session = Depends(get_db)):
     )
 
     return {
-    "supplier_name": Supplier.name,
-    "procurement_score": Supplier.procurement_score,
-    "risk_score": Supplier.risk_score,
-    "risk_level": Supplier.risk_level,
-    "explanation": generate_explanation(Supplier)
+        "supplier_name": Supplier.name,
+        "procurement_score": Supplier.procurement_score,
+        "risk_score": Supplier.risk_score,
+        "risk_level": Supplier.risk_level,
+        "explanation": generate_explanation(Supplier),
+        "score_breakdown": generate_score_breakdown(Supplier)
+
     }
 @router.get("/compare")
 def compare_suppliers(db: Session = Depends(get_db)):

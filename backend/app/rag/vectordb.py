@@ -1,14 +1,19 @@
 import chromadb
-from app.rag.embeddings import model
+from app.rag.embeddings import get_model
+import chromadb
 
-client = chromadb.PersistentClient(
-    path="chromadb"
-)
+_client = None
+_collection = None
+def get_collection():
+    global _client, _collection
 
-collection = client.get_or_create_collection(
-    name="supplier_contracts"
-)
+    if _collection is None:
+        _client = chromadb.PersistentClient(path="chromadb")
+        _collection = _client.get_or_create_collection(
+            name="supplier_contracts"
+        )
 
+    return _collection
 
 def store_chunks(chunks, embeddings):
 
@@ -49,6 +54,8 @@ def store_chunks(chunks, embeddings):
 
 
 def search(query, top_k=3):
+
+    model = get_model()
 
     query_vector = model.encode(query).tolist()
 

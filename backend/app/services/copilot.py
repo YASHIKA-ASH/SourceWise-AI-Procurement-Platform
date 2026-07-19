@@ -7,7 +7,7 @@ from app.rag.llm import client
 from app.services.rag_service import answer_question
 from app.utils.risk_calculator import calculate_risk
 from app.utils.explainability import generate_explanation
-
+from app.utils.score_breakdown import generate_score_breakdown
 def procurement_copilot(db, question):
 
     cache_key = f"copilot:{question.lower().strip()}"
