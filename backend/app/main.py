@@ -24,8 +24,8 @@ from app.models.supplier import Supplier
 # from app.routers.auth import router as auth_router
 # from app.routers.dashboard import router as dashboard_router
 from app.routers.supplier import router as supplier_router
-from backend.app.decision_engine import evaluate
-from backend.app.services.insights import generate_insights
+from app.decision_engine import evaluate
+from app.services.insights import generate_insights
 # from app.routers.upload import router as upload_router
 # from app.routers.ranking import router as ranking_router
 # from app.routers.metrics import router as metrics_router
@@ -132,7 +132,8 @@ print("========== MAIN COMPLETE ==========")
 def simulate(
     request: Request,
     data: Procurement,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_manager)
 ):
 
     start = perf_counter()

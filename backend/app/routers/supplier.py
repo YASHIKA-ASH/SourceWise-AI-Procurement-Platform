@@ -8,6 +8,7 @@ from app.models.supplier import Supplier
 from app.dependencies import require_admin
 from app.utils.explainability import generate_explanation
 from app.utils.score_breakdown import generate_score_breakdown
+from app.models import supplier
 router = APIRouter(
     prefix="/suppliers",
     tags=["Suppliers"]

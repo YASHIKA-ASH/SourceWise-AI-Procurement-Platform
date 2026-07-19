@@ -40,7 +40,10 @@ def require_manager(
     user=Depends(get_current_user)
 ):
 
-    if user["role"] not in ["admin", "manager"]:
+    if user["role"] not in [
+        "admin",
+        "manager"
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager access required"
