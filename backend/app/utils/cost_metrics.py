@@ -29,5 +29,14 @@ def calculate_cost_metrics(suppliers, required_quantity, best_plan):
         "single_supplier_cost": round(single_supplier_cost, 2),
         "optimized_cost": round(optimized_cost, 2),
         "estimated_savings": round(savings, 2),
-        "savings_percent": savings_percent
-    }
+        "savings_percent": savings_percent,
+        "average_unit_price": round(
+            optimized_cost / required_quantity,
+            2
+        ),
+        "capacity_utilization": round(
+            (required_quantity / best_plan["total_capacity"]) * 100,
+            2
+        ),
+        "optimized_supplier_count": best_plan["supplier_count"],
+            }
