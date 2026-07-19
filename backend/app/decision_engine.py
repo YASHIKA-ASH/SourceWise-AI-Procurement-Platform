@@ -20,6 +20,12 @@ def evaluate(db: Session, quantity, inventory, daily_usage):
 
         risk, risk_level = calculate_risk(s)
 
+            cost_efficiency = round(
+        (lowest_price / s.price_per_unit) * 100,
+        2
+    )
+
+        
         production_loss = delay * 250000
 
         risk = (
