@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,77 +10,20 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// ---- Supplier base data -----------------------------------------------
-// In the original file this lived on a backend the artifact can't reach.
-// It's modeled here so the simulation actually runs.
-const SUPPLIERS = [
-  { supplier: "Vantex Metals", unitCost: 39.8, baseLeadTime: 9, riskWeight: 0.12 },
-  { supplier: "Orion Components", unitCost: 44.5, baseLeadTime: 13, riskWeight: 0.22 },
-  { supplier: "Harbor Supply Co.", unitCost: 41.2, baseLeadTime: 18, riskWeight: 0.35 },
-];
+const API_URL = "https://sourcewise-ai-procurement-platform-1.onrender.com";
+
+const apiClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
 function riskLevel(risk) {
-  if (risk < 0.18) return "Low";
-  if (risk < 0.3) return "Medium";
+  const riskValue = typeof risk === "string" ? parseFloat(risk) : risk;
+  if (riskValue < 0.18) return "Low";
+  if (riskValue < 0.3) return "Medium";
   return "High";
-}
-
-function runSimulation({ quantity, inventory, dailyUsage }) {
-  const shortfall = Math.max(0, quantity - inventory);
-  const daysOfCover = dailyUsage > 0 ? inventory / dailyUsage : 0;
-
-  const comparison = SUPPLIERS.map((s) => {
-    const cost = Math.round(shortfall * s.unitCost);
-    const delayDays = Math.max(0, Math.round(s.baseLeadTime - daysOfCover));
-    const risk = Math.min(0.95, s.riskWeight + delayDays * 0.01);
-
-    // Weighted score: lower cost, lower lead time, lower risk => higher score
-    const costScore = 1 - s.unitCost / 60;
-    const leadScore = 1 - s.baseLeadTime / 30;
-    const riskScore = 1 - risk;
-    const score = Math.round(
-      (costScore * 0.4 + leadScore * 0.35 + riskScore * 0.25) * 100
-    );
-
-    return {
-      supplier: s.supplier,
-      cost,
-      lead_time: s.baseLeadTime,
-      delay_days: delayDays,
-      risk: risk.toFixed(2),
-      risk_level: riskLevel(risk),
-      score: Math.max(0, Math.min(100, score)),
-    };
-  }).sort((a, b) => b.score - a.score)
-    .map((row, i) => ({ ...row, rank: i + 1 }));
-
-  const best = comparison[0];
-  const productionLoss = best.delay_days * dailyUsage * 6.5;
-  const worstCost = Math.max(...comparison.map((c) => c.cost));
-  const estimatedSaving = Math.max(0, worstCost - best.cost);
-  const stockoutDays = Math.max(0, Math.round((shortfall / (dailyUsage || 1)) - best.lead_time));
-
-  return {
-    comparison,
-    stockout_days: stockoutDays,
-    scenario:
-      shortfall > 0
-        ? `Shortfall of ${shortfall.toLocaleString()} units against current inventory`
-        : "Inventory covers demand; simulation is precautionary",
-    best_supplier: {
-      supplier: best.supplier,
-      score: best.score,
-      risk: best.risk,
-      risk_level: best.risk_level,
-      lead_time: best.lead_time,
-      confidence: Math.min(99, 70 + Math.round(best.score / 5)),
-      supplier_reliability: `${Math.round(100 - Number(best.risk) * 100)}%`,
-      cost_efficiency: `${Math.round(100 - (best.cost / (worstCost || 1)) * 100)}%`,
-      delay_days: best.delay_days,
-      production_loss: Math.round(productionLoss),
-      estimated_saving: Math.round(estimatedSaving),
-    },
-  };
 }
 
 export default function App() {
@@ -89,8 +33,52 @@ export default function App() {
   const [inventory, setInventory] = useState(7000);
   const [dailyUsage, setDailyUsage] = useState(500);
   const [result, setResult] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    suppliersCount: 0,
+    avgLeadTime: 0,
+    lowestCost: 0,
+  });
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [riskData, setRiskData] = useState(null);
+  // Load dashboard analytics on component mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const simulate = () => {
+  const fetchDashboardData = async () => {
+  try {
+    setDashboardLoading(true);
+
+    const [analyticsRes, riskRes] = await Promise.all([
+      apiClient.get("/analytics"),
+      apiClient.get("/dashboard/risk-analysis"),
+    ]);
+
+    setDashboardData({
+      suppliersCount: analyticsRes.data.suppliers_count || 0,
+      avgLeadTime: analyticsRes.data.avg_lead_time || 0,
+      lowestCost: analyticsRes.data.lowest_cost || 0,
+    });
+
+    setRiskData(riskRes.data);
+
+  } catch (err) {
+    console.error("Failed to load dashboard data:", err);
+
+    setDashboardData({
+      suppliersCount: 0,
+      avgLeadTime: 0,
+      lowestCost: 0,
+    });
+
+    setRiskData(null);
+
+  } finally {
+    setDashboardLoading(false);
+  }
+};
+
+  const simulate = async () => {
     setError("");
 
     if (quantity <= 0 || inventory < 0 || dailyUsage <= 0) {
@@ -98,19 +86,102 @@ export default function App() {
       return;
     }
 
-    setLoading(true);
-    // Simulated latency so the loading state is visible; no network call.
-    setTimeout(() => {
-      try {
-        const data = runSimulation({ quantity, inventory, dailyUsage });
-        setResult(data);
-      } catch (err) {
-        console.error(err);
-        setError("Simulation failed. Check your inputs and try again.");
-      } finally {
-        setLoading(false);
+    try {
+      setLoading(true);
+
+      const response = await apiClient.post("/simulate", {
+        quantity,
+        inventory,
+        daily_usage: dailyUsage,
+      });
+
+      const data = response.data;
+
+      // Transform API response to match expected UI structure
+      const transformedResult = {
+        comparison: data.comparison || [],
+        stockout_days: data.stockout_days || 0,
+        scenario:
+          quantity > inventory
+            ? `Shortfall of ${(quantity - inventory).toLocaleString()} units against current inventory`
+            : "Inventory covers demand; simulation is precautionary",
+        best_supplier: {
+          supplier: data.best_supplier?.supplier || "N/A",
+          score: data.best_supplier?.score || 0,
+          risk: data.best_supplier?.risk || "0.00",
+          risk_level: riskLevel(data.best_supplier?.risk || 0),
+          lead_time: data.best_supplier?.lead_time || 0,
+          confidence: Math.min(99, 70 + Math.round((data.best_supplier?.score || 0) / 5)),
+          supplier_reliability: `${Math.round(100 - (parseFloat(data.best_supplier?.risk || 0) * 100))}%`,
+          cost_efficiency: calculateCostEfficiency(data.comparison),
+          delay_days: data.best_supplier?.delay_days || 0,
+          production_loss: calculateProductionLoss(
+            data.best_supplier?.delay_days || 0,
+            dailyUsage
+          ),
+          estimated_saving: calculateEstimatedSaving(data.comparison),
+        },
+      };
+
+      setResult(transformedResult);
+    } catch (err) {
+      console.error("Simulation error:", err);
+      if (err.response?.data?.detail) {
+        setError(`API Error: ${err.response.data.detail}`);
+      } else if (err.message) {
+        setError(`Failed to run simulation: ${err.message}`);
+      } else {
+        setError("Simulation failed. Please check your inputs and try again.");
       }
-    }, 500);
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateCostEfficiency = (comparison) => {
+    if (!comparison || comparison.length === 0) return "0%";
+    const worstCost = Math.max(...comparison.map((c) => c.cost || 0));
+    const bestCost = Math.min(...comparison.map((c) => c.cost || 0));
+    if (worstCost === 0) return "0%";
+    return `${Math.round(((worstCost - bestCost) / worstCost) * 100)}%`;
+  };
+
+  const calculateProductionLoss = (delayDays, dailyUsage) => {
+    return Math.round(delayDays * dailyUsage * 6.5);
+  };
+
+  const calculateEstimatedSaving = (comparison) => {
+    if (!comparison || comparison.length < 2) return 0;
+    const costs = comparison.map((c) => c.cost || 0).sort((a, b) => a - b);
+    return Math.max(0, costs[costs.length - 1] - costs[0]);
+  };
+
+  const downloadReport = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get("/report", {
+        params: {
+          quantity,
+          inventory,
+          daily_usage: dailyUsage,
+        },
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "procurement_report.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      console.error("Report download error:", err);
+      setError("Failed to download report. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -133,15 +204,45 @@ export default function App() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
+          gridTemplateColumns: "repeat(7,1fr)",
           gap: 20,
           marginTop: 20,
         }}
       >
-        <Card title="Suppliers" value={String(SUPPLIERS.length)} />
-        <Card title="Avg Lead Time" value="13.3 Days" />
-        <Card title="Lowest Cost" value="₹39.8/unit" />
-        <Card title="Risk Index" value={result ? result.best_supplier.risk_level : "—"} />
+        <Card
+          title="Suppliers"
+          value={dashboardLoading ? "..." : String(dashboardData.suppliersCount)}
+        />
+        <Card
+          title="Avg Lead Time"
+          value={dashboardLoading ? "..." : `${dashboardData.avgLeadTime.toFixed(1)} Days`}
+        />
+        <Card
+          title="Lowest Cost"
+          value={dashboardLoading ? "..." : `₹${dashboardData.lowestCost.toFixed(2)}/unit`}
+        />
+        <Card
+          title="Risk Index"
+          value={result ? result.best_supplier.risk_level : "—"}
+        />
+        {riskData && (
+  <>
+    <Card
+      title="High Risk"
+      value={riskData.summary.high_risk}
+    />
+
+    <Card
+      title="Medium Risk"
+      value={riskData.summary.medium_risk}
+    />
+
+    <Card
+      title="Low Risk"
+      value={riskData.summary.low_risk}
+    />
+  </>
+)}
       </div>
 
       <div style={box}>
@@ -206,7 +307,12 @@ export default function App() {
       {result && (
         <>
           <div style={box}>
-            <h2 style={{ marginTop: 0 }}>Executive decision summary</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ marginTop: 0 }}>Executive decision summary</h2>
+              <button onClick={downloadReport} disabled={loading} style={buttonSecondary}>
+                {loading ? "Generating..." : "Download Report (PDF)"}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 25 }}>
@@ -294,60 +400,64 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {result.comparison.map((s) => (
-                  <tr key={s.supplier} style={{ background: s.rank % 2 === 0 ? "#101B2E" : "transparent" }}>
-                    <td style={td}>#{s.rank}</td>
+                {result.comparison.map((s, idx) => (
+                  <tr key={s.supplier || idx} style={{ background: (idx + 1) % 2 === 0 ? "#101B2E" : "transparent" }}>
+                    <td style={td}>#{idx + 1}</td>
                     <td style={td}>{s.supplier}</td>
-                    <td style={td}>₹{s.cost.toLocaleString()}</td>
+                    <td style={td}>₹{(s.cost || 0).toLocaleString()}</td>
                     <td style={td}>{s.lead_time}</td>
                     <td style={td}>{s.delay_days}</td>
                     <td style={td}>{s.risk}</td>
-                    <td style={td}>{s.risk_level}</td>
+                    <td style={td}>{s.risk_level || riskLevel(s.risk)}</td>
                     <td style={td}>{s.score}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+              </table>
+</div>
 
-          <div style={box}>
+{result.comparison.length > 0 && (
+    <>
+        <div style={box}>
             <h2 style={{ marginTop: 0 }}>Cost comparison</h2>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={result.comparison}>
-                <CartesianGrid stroke="#1F2A3C" vertical={false} />
-                <XAxis dataKey="supplier" stroke="#8B96AC" />
-                <YAxis stroke="#8B96AC" />
-                <Tooltip contentStyle={{ background: "#131C2E", border: "1px solid #1F2A3C" }} />
-                <Bar dataKey="cost" radius={[6, 6, 0, 0]} fill="#2DD4BF" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={result.comparison}>
+                    <CartesianGrid stroke="#1F2A3C" vertical={false} />
+                    <XAxis dataKey="supplier" stroke="#8B96AC" />
+                    <YAxis stroke="#8B96AC" />
+                    <Tooltip contentStyle={{ background: "#131C2E", border: "1px solid #1F2A3C" }} />
+                    <Bar dataKey="cost" radius={[6, 6, 0, 0]} fill="#2DD4BF" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-          <div style={box}>
-            <h2 style={{ marginTop: 0 }}>Lead time comparison</h2>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={result.comparison}>
-                <CartesianGrid stroke="#1F2A3C" vertical={false} />
-                <XAxis dataKey="supplier" stroke="#8B96AC" />
-                <YAxis stroke="#8B96AC" />
-                <Tooltip contentStyle={{ background: "#131C2E", border: "1px solid #1F2A3C" }} />
-                <Bar dataKey="lead_time" radius={[6, 6, 0, 0]} fill="#F5A623" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              <div style={box}>
+                <h2 style={{ marginTop: 0 }}>Lead time comparison</h2>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={result.comparison}>
+                    <CartesianGrid stroke="#1F2A3C" vertical={false} />
+                    <XAxis dataKey="supplier" stroke="#8B96AC" />
+                    <YAxis stroke="#8B96AC" />
+                    <Tooltip contentStyle={{ background: "#131C2E", border: "1px solid #1F2A3C" }} />
+                    <Bar dataKey="lead_time" radius={[6, 6, 0, 0]} fill="#F5A623" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-          <div style={box}>
-            <h2 style={{ marginTop: 0 }}>Supplier score comparison</h2>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={result.comparison}>
-                <CartesianGrid stroke="#1F2A3C" vertical={false} />
-                <XAxis dataKey="supplier" stroke="#8B96AC" />
-                <YAxis stroke="#8B96AC" />
-                <Tooltip contentStyle={{ background: "#131C2E", border: "1px solid #1F2A3C" }} />
-                <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="#378ADD" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              <div style={box}>
+                <h2 style={{ marginTop: 0 }}>Supplier score comparison</h2>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={result.comparison}>
+                    <CartesianGrid stroke="#1F2A3C" vertical={false} />
+                    <XAxis dataKey="supplier" stroke="#8B96AC" />
+                    <YAxis stroke="#8B96AC" />
+                    <Tooltip contentStyle={{ background: "#131C2E", border: "1px solid #1F2A3C" }} />
+                    <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="#378ADD" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
@@ -403,6 +513,16 @@ const buttonPrimary = {
   border: "1px solid #2DD4BF",
   background: "#2DD4BF",
   color: "#04342C",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const buttonSecondary = {
+  padding: "10px 20px",
+  borderRadius: 8,
+  border: "1px solid #8B96AC",
+  background: "transparent",
+  color: "#8B96AC",
   fontWeight: "bold",
   cursor: "pointer",
 };

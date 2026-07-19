@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.supplier import Supplier
 from app.schemas.supplier import SupplierCreate
-
+from app.database.redis import redis_client
 
 def create_supplier(db: Session, supplier: SupplierCreate):
     new_supplier = Supplier(**supplier.model_dump())
@@ -11,6 +11,9 @@ def create_supplier(db: Session, supplier: SupplierCreate):
     db.refresh(new_supplier)
 
     return new_supplier
+    redis_client.delete("suppliers")
+
+    print("🗑 Supplier cache invalidated")
 
 
 def get_suppliers(db: Session):
