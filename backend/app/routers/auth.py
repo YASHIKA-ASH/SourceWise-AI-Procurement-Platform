@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from app.database.database import get_db
 from app.schemas.auth import LoginRequest
 from app.security import create_access_token
+from app.services.user_service import authenticate_user
 
 router = APIRouter(
     prefix="/auth",
@@ -10,23 +13,31 @@ router = APIRouter(
 
 
 @router.post("/login")
-def login(data: LoginRequest):
+def login(
+    data: LoginRequest,
+    db: Session = Depends(get_db)
+):
 
-    if data.username == "admin" and data.password == "admin123":
+    user = authenticate_user(
+        db,
+        data.username,
+        data.password
+    )
 
-        token = create_access_token(
-            {
-                "username": "admin",
-                "role": "admin"
-            }
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
         )
 
-        return {
-            "access_token": token,
-            "token_type": "bearer"
+    token = create_access_token(
+        {
+            "username": user.username,
+            "role": user.role
         }
-
-    raise HTTPException(
-        status_code=401,
-        detail="Invalid credentials"
     )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }

@@ -1,6 +1,8 @@
+import json
 import os
+from time import perf_counter
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request
 from pydantic import BaseModel
 
 from sqlalchemy.orm import Session
@@ -8,9 +10,10 @@ from sqlalchemy.orm import Session
 from app.database.database import (
     Base,
     SessionLocal,
-    engine
+    engine,
+    get_db
 )
-
+from app.dependencies import require_manager
 from app.models.supplier import Supplier
 # from fastapi.middleware.cors import CORSMiddleware
 # from fastapi import Depends
@@ -21,6 +24,8 @@ from app.models.supplier import Supplier
 # from app.routers.auth import router as auth_router
 # from app.routers.dashboard import router as dashboard_router
 from app.routers.supplier import router as supplier_router
+from backend.app.decision_engine import evaluate
+from backend.app.services.insights import generate_insights
 # from app.routers.upload import router as upload_router
 # from app.routers.ranking import router as ranking_router
 # from app.routers.metrics import router as metrics_router
@@ -39,7 +44,7 @@ from app.routers.supplier import router as supplier_router
 # from app.middleware.timing import TimingMiddleware
 
 # from app.database.database import get_db
-# from app.database.redis import redis_client
+from app.database.redis import redis_client
 
 # from app.rag.indexer import build_indexes
 

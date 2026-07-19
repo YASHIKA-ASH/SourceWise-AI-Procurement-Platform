@@ -5,6 +5,7 @@ from app.database.database import get_db
 from app.schemas.supplier import SupplierCreate, SupplierResponse
 from app.services.supplier import create_supplier, get_suppliers
 from app.models.supplier import Supplier
+from app.dependencies import require_admin
 from app.utils.explainability import generate_explanation
 from app.utils.score_breakdown import generate_score_breakdown
 router = APIRouter(
@@ -14,9 +15,12 @@ router = APIRouter(
 
 
 @router.post("/", response_model=SupplierResponse)
-def add_supplier(
-    supplier: SupplierCreate,
-    db: Session = Depends(get_db)
+
+@router.post("/")
+def create_supplier(
+    data: SupplierCreate,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin)
 ):
     return create_supplier(db, supplier)
 
