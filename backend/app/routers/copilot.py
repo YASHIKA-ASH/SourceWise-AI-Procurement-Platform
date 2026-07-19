@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_current_user
 from app.database.database import get_db
 from app.services.copilot import procurement_copilot
-
+from app.dependencies import get_current_user
+current_user=Depends(get_current_user)
 router = APIRouter(
     prefix="/copilot",
     tags=["AI Procurement Copilot"]

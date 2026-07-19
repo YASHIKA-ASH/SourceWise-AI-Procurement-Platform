@@ -5,13 +5,12 @@ from app.utils.risk_calculator import calculate_risk
 from app.database.database import get_db
 from app.models.supplier import Supplier
 from app.models.performance_log import PerformanceLog
-
+from app.dependencies import get_current_user
 router = APIRouter(
     prefix="/dashboard",
     tags=["Dashboard"]
 )
-
-
+current_user=Depends(get_current_user)
 @router.get("/overview")
 def dashboard_overview(db: Session = Depends(get_db)):
 
