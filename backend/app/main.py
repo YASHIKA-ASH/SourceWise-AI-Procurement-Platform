@@ -20,7 +20,7 @@ from app.models.supplier import Supplier
 # from app.routers.report import router as report_router
 # from app.routers.auth import router as auth_router
 # from app.routers.dashboard import router as dashboard_router
-# from app.routers.supplier import router as supplier_router
+ from app.routers.supplier import router as supplier_router
 # from app.routers.upload import router as upload_router
 # from app.routers.ranking import router as ranking_router
 # from app.routers.metrics import router as metrics_router
@@ -93,7 +93,7 @@ print("Registering routers...")
 # app.include_router(copilot_router)
 # app.include_router(analytics_router)
 # app.include_router(report_router)
-# app.include_router(supplier_router)
+ app.include_router(supplier_router)
 # app.include_router(ranking_router)
 # app.include_router(metrics_router)
 # app.include_router(rag_router)
@@ -122,3 +122,85 @@ def home():
 
 print("========== MAIN COMPLETE ==========")
 
+
+@app.post("/simulate")
+def simulate(
+    request: Request,
+    data: Procurement,
+    db: Session = Depends(get_db)
+):
+
+    start = perf_counter()
+
+    cache_key = (
+        f"simulation:"
+        f"{data.quantity}:"
+        f"{data.inventory}:"
+        f"{data.daily_usage}"
+    )
+
+    cached = redis_client.get(cache_key)
+
+    if cached:
+
+        if cached:
+
+            print("========== REDIS ==========")
+            print("Module    : Simulation Cache")
+            print("Cache Hit : YES")
+            print("===========================")
+
+        request.state.cache_hit = True
+
+        total_time = perf_counter() - start
+
+        print(f"API Time: {total_time:.3f} sec")
+
+        request.state.api_time = total_time
+
+        return json.loads(cached)
+
+        print("========== REDIS ==========")
+        print("Module    : Simulation Cache")
+        print("Cache Hit : NO")
+        print("===========================")
+
+    request.state.cache_hit = False
+
+    evaluation = evaluate(
+        db,
+        data.quantity,
+        data.inventory,
+        data.daily_usage
+    )
+
+    result = evaluation["results"]
+    sql_time = evaluation["sql_time"]
+    cache_hit = evaluation["cache_hit"]
+
+    request.state.sql_time = sql_time
+    request.state.cache_hit = cache_hit
+
+    response = {
+        "best_supplier": result[0],
+        "comparison": result,
+        "stockout_days": round(
+            data.inventory / data.daily_usage,
+            2
+        ),
+        "ai_insights": generate_insights(result[0])
+    }
+
+    redis_client.setex(
+        cache_key,
+        300,
+        json.dumps(response)
+    )
+
+    total_time = perf_counter() - start
+
+    print(f"API Time: {total_time:.3f} sec")
+
+    request.state.api_time = total_time
+
+    return response
