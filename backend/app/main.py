@@ -20,7 +20,7 @@ from app.models.supplier import Supplier
 # from app.routers.report import router as report_router
 # from app.routers.auth import router as auth_router
 # from app.routers.dashboard import router as dashboard_router
- from app.routers.supplier import router as supplier_router
+from app.routers.supplier import router as supplier_router
 # from app.routers.upload import router as upload_router
 # from app.routers.ranking import router as ranking_router
 # from app.routers.metrics import router as metrics_router
@@ -93,7 +93,7 @@ print("Registering routers...")
 # app.include_router(copilot_router)
 # app.include_router(analytics_router)
 # app.include_router(report_router)
- app.include_router(supplier_router)
+app.include_router(supplier_router)
 # app.include_router(ranking_router)
 # app.include_router(metrics_router)
 # app.include_router(rag_router)
