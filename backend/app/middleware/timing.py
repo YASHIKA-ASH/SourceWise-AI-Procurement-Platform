@@ -10,28 +10,61 @@ class TimingMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request, call_next):
 
+        
         start = time.perf_counter()
 
+        
         response = await call_next(request)
 
-        latency = (time.perf_counter() - start) * 1000
+        
+        latency = round(
+            (time.perf_counter() - start) * 1000,
+            2
+        )
 
+        
+        sql_time = getattr(
+            request.state,
+            "sql_time",
+            0
+        )
+
+        cache_hit = getattr(
+    request.state,
+    "cache_hit",
+    False
+)
         db = SessionLocal()
 
         try:
+
             log_request(
                 db=db,
                 endpoint=request.url.path,
-                latency=round(latency, 2),
+                latency=latency,
+                sql_time=sql_time,
+                cache_hit=cache_hit,
                 status_code=response.status_code
             )
+
         finally:
+
             db.close()
 
-        response.headers["X-Response-Time"] = f"{latency:.2f} ms"
+        
+        response.headers["X-Response-Time"] = f"{latency} ms"
 
+        
         print(
-            f"{request.method} {request.url.path} : {latency:.2f} ms"
+            f"""
+===========================
+Endpoint   : {request.url.path}
+Method     : {request.method}
+Latency    : {latency} ms
+SQL Time   : {sql_time} ms
+Status     : {response.status_code}
+===========================
+"""
         )
 
         return response

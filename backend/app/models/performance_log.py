@@ -25,3 +25,5 @@ class PerformanceLog(Base):
     status_code = Column(Integer, default=200)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    embedding_time = Column(Float, default=0)

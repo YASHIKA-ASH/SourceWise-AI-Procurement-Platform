@@ -7,29 +7,59 @@ from app.decision_engine import evaluate
 from app.services.insights import generate_insights
 from sqlalchemy.orm import Session
 from fastapi import Depends
+from app.routers.dashboard import router as dashboard_router
 from app.database.database import get_db
-from app.decision_engine import evaluate
 from app.routers.supplier import router as supplier_router
 from app.routers.upload import router as upload_router
-from app.routers.supplier import router as suppliers_router
 from app.routers.ranking import router as ranking_router
-from app.models import supplier
 #from app.models import metrics
+from app.routers.copilot import router as copilot_router
+from app.rag.indexer import build_indexes
 from app.middleware.timing import TimingMiddleware
-from app.models.performance_log import PerformanceLog
 from app.database.database import engine
 from app.database.database import Base
 from app.routers.metrics import router as metrics_router
-
-
+from fastapi import Request
+from app.routers import risk
+from app.routers.redis import router as redis_router
+from app.routers.rag import router as rag_router
+from app.routers.search import router as search_router
+from app.routers.chat import router as chat_router
+from app.rag.indexer import build_indexes
+import json
+from app.database.database import SessionLocal
+from app.models.supplier import Supplier
+from app.database.redis import redis_client
+from time import perf_counter
 app = FastAPI(title="SourceWise")
+@app.on_event("startup")
+def startup_event():
+
+    build_indexes()
+
+    db = SessionLocal()
+
+    try:
+        suppliers = db.query(Supplier).all()
+        
+
+    finally:
+        db.close()
+print("✅ Supplier cache warmed")
+print("✅ RAG Ready")
 Base.metadata.create_all(bind=engine)
+app.include_router(copilot_router)
 app.add_middleware(TimingMiddleware)
 app.include_router(analytics_router)
 app.include_router(report_router)
 app.include_router(supplier_router)
 app.include_router(ranking_router)
 app.include_router(metrics_router)
+app.include_router(rag_router)
+app.include_router(search_router)
+app.include_router(chat_router)
+app.include_router(dashboard_router)
+app.include_router(risk.router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -53,34 +83,87 @@ def home():
     return {"project": "SourceWise"}
 
 
-@app.post("/simulate")
-def simulate(data: Procurement, db: Session = Depends(get_db)):
 
-    result = evaluate(
+
+
+@app.post("/simulate")
+def simulate(
+    request: Request,
+    data: Procurement,
+    db: Session = Depends(get_db)
+):
+
+    start = perf_counter()
+
+    cache_key = (
+        f"simulation:"
+        f"{data.quantity}:"
+        f"{data.inventory}:"
+        f"{data.daily_usage}"
+    )
+
+    cached = redis_client.get(cache_key)
+
+    if cached:
+
+        if cached:
+
+            print("========== REDIS ==========")
+            print("Module    : Simulation Cache")
+            print("Cache Hit : YES")
+            print("===========================")
+
+        request.state.cache_hit = True
+
+        total_time = perf_counter() - start
+
+        print(f"API Time: {total_time:.3f} sec")
+
+        request.state.api_time = total_time
+
+        return json.loads(cached)
+
+        print("========== REDIS ==========")
+        print("Module    : Simulation Cache")
+        print("Cache Hit : NO")
+        print("===========================")
+
+    request.state.cache_hit = False
+
+    evaluation = evaluate(
         db,
         data.quantity,
         data.inventory,
         data.daily_usage
     )
 
-    return {
-    "best_supplier": result[0],
-    "comparison": result,
-    "ai_insights": generate_insights(result[0])
+    result = evaluation["results"]
+    sql_time = evaluation["sql_time"]
+    cache_hit = evaluation["cache_hit"]
+
+    request.state.sql_time = sql_time
+    request.state.cache_hit = cache_hit
+
+    response = {
+        "best_supplier": result[0],
+        "comparison": result,
+        "stockout_days": round(
+            data.inventory / data.daily_usage,
+            2
+        ),
+        "ai_insights": generate_insights(result[0])
     }
 
-@app.post("/simulate")
-def simulate(data: Procurement, db: Session = Depends(get_db)):
-
-    result = evaluate(
-        db,
-        data.quantity,
-        data.inventory,
-        data.daily_usage
+    redis_client.setex(
+        cache_key,
+        300,
+        json.dumps(response)
     )
 
-    return {
-    "best_supplier": result[0],
-    "comparison": result,
-    "stockout_days": round(data.inventory/data.daily_usage,2)
-    }
+    total_time = perf_counter() - start
+
+    print(f"API Time: {total_time:.3f} sec")
+
+    request.state.api_time = total_time
+
+    return response
