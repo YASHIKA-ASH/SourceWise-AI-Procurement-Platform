@@ -58,32 +58,21 @@ def startup_event():
     print("STEP 5")
 
 
-app.include_router(copilot_router)
-app.add_middleware(TimingMiddleware)
-app.include_router(analytics_router)
-app.include_router(report_router)
-app.include_router(supplier_router)
-app.include_router(ranking_router)
-app.include_router(metrics_router)
-app.include_router(rag_router)
-app.include_router(search_router)
-app.include_router(chat_router)
-app.include_router(dashboard_router)
-app.include_router(risk.router)
-app.include_router(cost_optimizer.router)
-app.include_router(auth_router)
-app.include_router(user_router)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-    "http://localhost:5173",
-    "https://source-wise-ai-procurement-platform-fawn.vercel.app"
-],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-app.include_router(upload_router)
+# app.include_router(copilot_router)
+# app.include_router(analytics_router)
+# app.include_router(report_router)
+# app.include_router(supplier_router)
+# app.include_router(ranking_router)
+# app.include_router(metrics_router)
+# app.include_router(rag_router)
+# app.include_router(search_router)
+# app.include_router(chat_router)
+# app.include_router(dashboard_router)
+# app.include_router(risk.router)
+# app.include_router(cost_optimizer.router)
+# app.include_router(auth_router)
+# app.include_router(user_router)
+# app.include_router(upload_router)
 
 if os.getenv("RENDER") is None:
     Base.metadata.create_all(bind=engine)
