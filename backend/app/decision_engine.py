@@ -68,6 +68,13 @@ def evaluate(db: Session, quantity, inventory, daily_usage):
     stockout_days = inventory_days
 
     results = []
+    if not suppliers:
+        return {
+            "results": [],
+            "sql_time": sql_time,
+            "cache_hit": cache_hit
+        }
+
     lowest_price = min(s.price_per_unit for s in suppliers)
 
     for s in suppliers:
