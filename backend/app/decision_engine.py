@@ -7,9 +7,16 @@ def evaluate(db: Session, quantity, inventory, daily_usage):
     suppliers = db.query(Supplier).all()
 
     inventory_days = inventory / daily_usage
-
+    stockout_days = inventory_days
+    
+    if inventory_days <= 3:
+        scenario = "Emergency Procurement"
+    elif inventory_days <= 7:
+        scenario = "Urgent Procurement"
+    else:
+        scenario = "Planned Procurement"
+    
     results = []
-
     lowest_price = min(s.price_per_unit for s in suppliers)
 
     for s in suppliers:
