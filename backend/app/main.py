@@ -1,62 +1,94 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from app.routers.analytics import router as analytics_router
-from app.routers.report import router as report_router
-from app.decision_engine import evaluate
-from app.services.insights import generate_insights
-from sqlalchemy.orm import Session
-from fastapi import Depends
-from app.routers.auth import router as auth_router
-from app.routers.dashboard import router as dashboard_router
-from app.database.database import get_db
-from app.routers.supplier import router as supplier_router
-from app.routers.upload import router as upload_router
-from app.routers.ranking import router as ranking_router
-#from app.models import metrics
 import os
-from app.routers.copilot import router as copilot_router
-from app.rag.indexer import build_indexes
-from app.middleware.timing import TimingMiddleware
-from app.database.database import engine
-from app.database.database import Base
-from app.routers.metrics import router as metrics_router
-from fastapi import Request
-from app.routers import cost_optimizer
-from app.routers import risk
-from app.routers.redis import router as redis_router
-from app.routers.rag import router as rag_router
-from app.routers.search import router as search_router
-from app.routers.chat import router as chat_router
-import json
-from app.database.database import SessionLocal
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from sqlalchemy.orm import Session
+
+from app.database.database import (
+    Base,
+    SessionLocal,
+    engine
+)
+
 from app.models.supplier import Supplier
-from app.database.redis import redis_client
-from time import perf_counter
-from app.routers.user import router as user_router
+# from fastapi.middleware.cors import CORSMiddleware
+# from fastapi import Depends
+# from fastapi import Request
+
+# from app.routers.analytics import router as analytics_router
+# from app.routers.report import router as report_router
+# from app.routers.auth import router as auth_router
+# from app.routers.dashboard import router as dashboard_router
+# from app.routers.supplier import router as supplier_router
+# from app.routers.upload import router as upload_router
+# from app.routers.ranking import router as ranking_router
+# from app.routers.metrics import router as metrics_router
+# from app.routers.copilot import router as copilot_router
+# from app.routers.user import router as user_router
+# from app.routers.redis import router as redis_router
+# from app.routers.rag import router as rag_router
+# from app.routers.search import router as search_router
+# from app.routers.chat import router as chat_router
+
+# from app.routers import risk
+# from app.routers import cost_optimizer
+
+# from app.decision_engine import evaluate
+# from app.services.insights import generate_insights
+# from app.middleware.timing import TimingMiddleware
+
+# from app.database.database import get_db
+# from app.database.redis import redis_client
+
+# from app.rag.indexer import build_indexes
+
+# from time import perf_counter
+# import json
+
+print("========== MAIN START ==========")
+
 app = FastAPI(title="SourceWise")
+
+print("FastAPI app created")
+
 
 @app.on_event("startup")
 def startup_event():
 
-    print("STEP 1")
+    print("========== STARTUP ==========")
 
     db = SessionLocal()
 
-    print("STEP 2")
+    print("Database session created")
 
     try:
-        print("STEP 3")
-
         suppliers = db.query(Supplier).all()
+        print(f"Loaded {len(suppliers)} suppliers")
 
-        print(f"STEP 4 - Loaded {len(suppliers)} suppliers")
+    except Exception as e:
+        print("Database startup error:")
+        print(e)
+        raise
 
     finally:
         db.close()
+        print("Database session closed")
 
-    print("STEP 5")
+    print("========== STARTUP COMPLETE ==========")
 
+
+print("Checking database initialization...")
+
+if os.getenv("RENDER") is None:
+    print("Running Base.metadata.create_all()")
+    Base.metadata.create_all(bind=engine)
+    print("Database tables checked")
+else:
+    print("Skipping create_all() on Render")
+
+
+print("Registering routers...")
 
 # app.include_router(copilot_router)
 # app.include_router(analytics_router)
@@ -74,8 +106,8 @@ def startup_event():
 # app.include_router(user_router)
 # app.include_router(upload_router)
 
-if os.getenv("RENDER") is None:
-    Base.metadata.create_all(bind=engine)
+print("Routers registered")
+
 
 class Procurement(BaseModel):
     quantity: int
@@ -83,13 +115,12 @@ class Procurement(BaseModel):
     daily_usage: int
 
 
-
 @app.get("/")
 def home():
     return {"project": "SourceWise"}
 
 
-
+print("========== MAIN COMPLETE ==========")
 
 
 @app.post("/simulate")
