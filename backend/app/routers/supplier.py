@@ -47,11 +47,11 @@ def supplier_analytics(db: Session = Depends(get_db)):
     )
 
     return {
-        "total_suppliers": total,
-        "average_price": round(avg_price,2),
-        "average_quality": round(avg_quality,2),
-        "average_delivery": round(avg_delivery,2),
-        "best_supplier": best_supplier.name
+    "supplier_name": Supplier.name,
+    "procurement_score": Supplier.procurement_score,
+    "risk_score": Supplier.risk_score,
+    "risk_level": Supplier.risk_level,
+    "explanation": generate_explanation(Supplier)
     }
 @router.get("/compare")
 def compare_suppliers(db: Session = Depends(get_db)):

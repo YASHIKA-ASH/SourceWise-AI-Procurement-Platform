@@ -33,21 +33,8 @@ from app.models.supplier import Supplier
 from app.database.redis import redis_client
 from time import perf_counter
 app = FastAPI(title="SourceWise")
-@app.on_event("startup")
-def startup_event():
 
-    build_indexes()
 
-    db = SessionLocal()
-
-    try:
-        suppliers = db.query(Supplier).all()
-        
-
-    finally:
-        db.close()
-print("✅ Supplier cache warmed")
-print("✅ RAG Ready")
 Base.metadata.create_all(bind=engine)
 app.include_router(copilot_router)
 app.add_middleware(TimingMiddleware)

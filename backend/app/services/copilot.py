@@ -6,7 +6,7 @@ from app.models.supplier import Supplier
 from app.rag.llm import client
 from app.services.rag_service import answer_question
 from app.utils.risk_calculator import calculate_risk
-
+from app.utils.explainability import generate_explanation
 
 def procurement_copilot(db, question):
 

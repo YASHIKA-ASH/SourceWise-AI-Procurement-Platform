@@ -18,7 +18,8 @@ def optimize_procurement(suppliers, required_quantity):
                 },
                 "total_cost": round(total_cost, 2),
                 "average_price": supplier.price_per_unit,
-                "supplier_count": 1
+                "supplier_count": 1,
+                "total_capacity": supplier.capacity_per_month
             })
 
     for s1, s2 in combinations(suppliers, 2):
@@ -56,11 +57,15 @@ def optimize_procurement(suppliers, required_quantity):
             },
             "total_cost": round(total_cost, 2),
             "average_price": round(avg_price, 2),
-            "supplier_count": 2
+            "supplier_count": 2,
+            "total_capacity": total_capacity
         })
 
     results.sort(
-        key=lambda x: x["total_cost"]
+        key=lambda x: (
+            x["total_cost"],
+            -x["total_capacity"]
+        )
     )
 
     return results[:10]
