@@ -20,6 +20,7 @@ from app.database.database import engine
 from app.database.database import Base
 from app.routers.metrics import router as metrics_router
 from fastapi import Request
+from app.routers import cost_optimizer
 from app.routers import risk
 from app.routers.redis import router as redis_router
 from app.routers.rag import router as rag_router
@@ -60,6 +61,7 @@ app.include_router(search_router)
 app.include_router(chat_router)
 app.include_router(dashboard_router)
 app.include_router(risk.router)
+app.include_router(cost_optimizer.router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
