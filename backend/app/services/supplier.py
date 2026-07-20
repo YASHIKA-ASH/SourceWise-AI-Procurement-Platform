@@ -10,10 +10,15 @@ def create_supplier(db: Session, supplier: SupplierCreate):
     db.commit()
     db.refresh(new_supplier)
 
-    return new_supplier
+    db.refresh(new_supplier)
+
     redis_client.delete("suppliers")
 
     print("🗑 Supplier cache invalidated")
+
+    return new_supplier
+
+        
 
 
 def get_suppliers(db: Session):

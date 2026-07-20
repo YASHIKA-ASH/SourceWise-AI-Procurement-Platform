@@ -1,12 +1,13 @@
 import os
 import json
-
 from fastapi import APIRouter, UploadFile, File, Depends
 from sqlalchemy.orm import Session
-
+from app.aws.s3 import upload_file
+from io import BytesIO
+from app.aws.s3 import upload_file
 from app.database.database import get_db
 from app.models.supplier import Supplier
-
+from app.aws.logger import logger
 from app.parser.quotation_parser import extract_pdf_text
 from app.ai.gemini import extract_supplier_details
 
@@ -23,8 +24,18 @@ async def upload_quotation(
 
     path = f"app/uploads/{file.filename}"
 
+    contents = await file.read()
+
+    
+
     with open(path, "wb") as f:
-        f.write(await file.read())
+        f.write(contents)
+
+    contract_url = upload_file(
+        BytesIO(contents),
+        file.filename
+    )
+
 
     text = extract_pdf_text(path)
 
@@ -41,6 +52,7 @@ async def upload_quotation(
         }
 
     supplier = Supplier(
+        contract_url=contract_url,
         name=data.get("supplier_name"),
         material=data.get("material"),
         price_per_unit=float(data.get("price_per_unit") or 0),

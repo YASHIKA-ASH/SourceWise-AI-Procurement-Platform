@@ -3,15 +3,12 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.security import decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def get_current_user(
     token: str = Depends(oauth2_scheme)
 ):
-
     payload = decode_access_token(token)
 
     if payload is None:
@@ -24,45 +21,36 @@ def get_current_user(
 
 
 def require_admin(
-    user=Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
-
-    if user["role"] != "admin":
+    if current_user["role"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
 
-    return user
+    return current_user
 
 
 def require_manager(
-    user=Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
-
-    if user["role"] not in [
-        "admin",
-        "manager"
-    ]:
+    if current_user["role"] not in ["admin", "manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager access required"
         )
 
-    return user
+    return current_user
 
 
 def require_supplier(
-    user=Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
-
-    if user["role"] not in [
-        "admin",
-        "supplier"
-    ]:
+    if current_user["role"] != "supplier":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Supplier access required"
         )
 
-    return user
+    return current_user

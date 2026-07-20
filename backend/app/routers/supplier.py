@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.services.comparison import calculate_score
+
 from app.database.database import get_db
+from app.dependencies import require_admin
+from app.models.supplier import Supplier
 from app.schemas.supplier import SupplierCreate, SupplierResponse
 from app.services.supplier import create_supplier, get_suppliers
-from app.models.supplier import Supplier
-from app.dependencies import require_admin
+from app.services.comparison import calculate_score
 from app.utils.explainability import generate_explanation
 from app.utils.score_breakdown import generate_score_breakdown
-from app.models import supplier
+
 router = APIRouter(
     prefix="/suppliers",
     tags=["Suppliers"]
@@ -16,14 +17,12 @@ router = APIRouter(
 
 
 @router.post("/", response_model=SupplierResponse)
-
-@router.post("/")
-def create_supplier(
+def add_supplier(
     data: SupplierCreate,
     db: Session = Depends(get_db),
-    user=Depends(require_admin)
+    current_user=Depends(require_admin)
 ):
-    return create_supplier(db, supplier)
+    return create_supplier(db, data)
 
 
 @router.get("/", response_model=list[SupplierResponse])
@@ -32,9 +31,12 @@ def read_suppliers(
 ):
     return get_suppliers(db)
 
-@router.get("/analytics")
-def supplier_analytics(db: Session = Depends(get_db)):
 
+@router.get("/analytics")
+def supplier_analytics(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+):
     suppliers = db.query(Supplier).all()
 
     if not suppliers:
@@ -43,28 +45,30 @@ def supplier_analytics(db: Session = Depends(get_db)):
     total = len(suppliers)
 
     avg_price = sum(s.price_per_unit for s in suppliers) / total
-
     avg_quality = sum(s.quality_score for s in suppliers) / total
-
     avg_delivery = sum(s.on_time_delivery for s in suppliers) / total
 
     best_supplier = max(
         suppliers,
-        key=lambda s: s.quality_score
+        key=calculate_score
     )
 
     return {
-        "supplier_name": Supplier.name,
-        "procurement_score": Supplier.procurement_score,
-        "risk_score": Supplier.risk_score,
-        "risk_level": Supplier.risk_level,
-        "explanation": generate_explanation(Supplier),
-        "score_breakdown": generate_score_breakdown(Supplier)
-
+        "total_suppliers": total,
+        "average_price": round(avg_price, 2),
+        "average_quality": round(avg_quality, 2),
+        "average_delivery": round(avg_delivery, 2),
+        "best_supplier": best_supplier.name,
+        "best_supplier_score": calculate_score(best_supplier),
+        "explanation": generate_explanation(best_supplier),
+        "score_breakdown": generate_score_breakdown(best_supplier)
     }
-@router.get("/compare")
-def compare_suppliers(db: Session = Depends(get_db)):
 
+
+@router.get("/compare")
+def compare_suppliers(
+    db: Session = Depends(get_db)
+):
     suppliers = db.query(Supplier).all()
 
     result = []
@@ -77,12 +81,6 @@ def compare_suppliers(db: Session = Depends(get_db)):
             + (100 - s.sustainability_score) * 0.1
         )
 
-        score = (
-            s.quality_score * 0.40
-            - s.price_per_unit * 0.02
-            - risk * 0.50
-        )
-
         result.append({
             "supplier": s.name,
             "material": s.material,
@@ -91,7 +89,7 @@ def compare_suppliers(db: Session = Depends(get_db)):
             "quality": s.quality_score,
             "delivery": s.on_time_delivery,
             "risk": round(risk, 2),
-            "score": round(score, 2)
+            "score": calculate_score(s)
         })
 
     result.sort(
@@ -100,9 +98,12 @@ def compare_suppliers(db: Session = Depends(get_db)):
     )
 
     return result
-@router.get("/ranking")
-def supplier_ranking(db: Session = Depends(get_db)):
 
+
+@router.get("/ranking")
+def supplier_ranking(
+    db: Session = Depends(get_db)
+):
     suppliers = db.query(Supplier).all()
 
     rankings = []
@@ -128,25 +129,49 @@ def supplier_ranking(db: Session = Depends(get_db)):
     )
 
     return rankings
+
+
 @router.get("/material/{name}")
-def get_by_material(name: str, db: Session = Depends(get_db)):
-    return db.query(Supplier).filter(
-        Supplier.material == name
-    ).all()
+def get_by_material(
+    name: str,
+    db: Session = Depends(get_db)
+):
+    return (
+        db.query(Supplier)
+        .filter(Supplier.material == name)
+        .all()
+    )
 
 
 @router.get("/country/{country}")
-def get_by_country(country: str, db: Session = Depends(get_db)):
-    return db.query(Supplier).filter(
-        Supplier.country == country
-    ).all()
+def get_by_country(
+    country: str,
+    db: Session = Depends(get_db)
+):
+    return (
+        db.query(Supplier)
+        .filter(Supplier.country == country)
+        .all()
+    )
 
 
 @router.get("/best")
-def get_best_supplier(db: Session = Depends(get_db)):
+def get_best_supplier(
+    db: Session = Depends(get_db)
+):
     suppliers = db.query(Supplier).all()
 
-    return max(
+    if not suppliers:
+        return {"message": "No suppliers found"}
+
+    best_supplier = max(
         suppliers,
-        key=lambda s: s.quality_score
+        key=calculate_score
     )
+
+    return {
+        "supplier": best_supplier.name,
+        "overall_score": calculate_score(best_supplier),
+        "explanation": generate_explanation(best_supplier),
+        "score_breakdown": generate_score_breakdown(best_supplier)
+    }

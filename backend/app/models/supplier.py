@@ -27,3 +27,5 @@ class Supplier(Base):
     certification = Column(String, default="ISO 9001")
 
     response_time = Column(Integer, default=24)
+
+    contract_url = Column(String, nullable=True)

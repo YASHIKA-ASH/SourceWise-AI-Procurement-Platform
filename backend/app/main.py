@@ -21,21 +21,21 @@ from app.models.supplier import Supplier
 
 # from app.routers.analytics import router as analytics_router
 # from app.routers.report import router as report_router
-# from app.routers.auth import router as auth_router
-# from app.routers.dashboard import router as dashboard_router
+from app.routers.auth import router as auth_router
+from app.routers.dashboard import router as dashboard_router
 from app.routers.supplier import router as supplier_router
 from app.decision_engine import evaluate
 from app.services.insights import generate_insights
-# from app.routers.upload import router as upload_router
+from app.routers.upload import router as upload_router
 # from app.routers.ranking import router as ranking_router
 # from app.routers.metrics import router as metrics_router
-# from app.routers.copilot import router as copilot_router
-# from app.routers.user import router as user_router
+from app.routers.copilot import router as copilot_router
+from app.routers.user import router as user_router
 # from app.routers.redis import router as redis_router
-# from app.routers.rag import router as rag_router
-# from app.routers.search import router as search_router
+from app.routers.rag import router as rag_router
+from app.routers.search import router as search_router
 # from app.routers.chat import router as chat_router
-
+from app.aws.logger import logger
 # from app.routers import risk
 # from app.routers import cost_optimizer
 
@@ -95,21 +95,21 @@ else:
 
 print("Registering routers...")
 
-# app.include_router(copilot_router)
+app.include_router(copilot_router)
 # app.include_router(analytics_router)
 # app.include_router(report_router)
 app.include_router(supplier_router)
 # app.include_router(ranking_router)
 # app.include_router(metrics_router)
-# app.include_router(rag_router)
-# app.include_router(search_router)
+app.include_router(rag_router)
+app.include_router(search_router)
 # app.include_router(chat_router)
-# app.include_router(dashboard_router)
+app.include_router(dashboard_router)
 # app.include_router(risk.router)
 # app.include_router(cost_optimizer.router)
-# app.include_router(auth_router)
-# app.include_router(user_router)
-# app.include_router(upload_router)
+app.include_router(auth_router)
+app.include_router(user_router)
+app.include_router(upload_router)
 
 print("Routers registered")
 
