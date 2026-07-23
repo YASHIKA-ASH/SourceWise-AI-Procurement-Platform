@@ -41,24 +41,27 @@ def create_user(
     return user
 
 
-def authenticate_user(
-    db: Session,
-    username: str,
-    password: str
-):
+def authenticate_user(db: Session, username: str, password: str):
 
-    user = get_user_by_username(
-        db,
-        username
-    )
+    user = get_user_by_username(db, username)
+
+    print("=" * 60)
+    print("INPUT USERNAME :", username)
+    print("INPUT PASSWORD :", password)
 
     if user is None:
+        print("USER NOT FOUND")
         return None
 
-    if not verify_password(
-        password,
-        user.password
-    ):
+    print("DB USERNAME    :", user.username)
+    print("DB HASH        :", user.password)
+
+    ok = verify_password(password, user.password)
+
+    print("VERIFY RESULT  :", ok)
+    print("=" * 60)
+
+    if not ok:
         return None
 
     return user

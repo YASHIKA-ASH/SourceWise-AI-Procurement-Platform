@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from app.services.supplier import (
+    update_supplier,
+    delete_supplier,
+)
 from app.database.database import get_db
 from app.dependencies import require_admin
 from app.models.supplier import Supplier
@@ -174,4 +177,43 @@ def get_best_supplier(
         "overall_score": calculate_score(best_supplier),
         "explanation": generate_explanation(best_supplier),
         "score_breakdown": generate_score_breakdown(best_supplier)
+    }
+@router.put("/{supplier_id}")
+def edit_supplier(
+    supplier_id: int,
+    data: SupplierCreate,
+    db: Session = Depends(get_db),
+):
+    supplier = update_supplier(
+        db,
+        supplier_id,
+        data,
+    )
+
+    if not supplier:
+        raise HTTPException(
+            status_code=404,
+            detail="Supplier not found",
+        )
+
+    return supplier
+
+@router.delete("/{supplier_id}")
+def remove_supplier(
+    supplier_id: int,
+    db: Session = Depends(get_db),
+):
+    success = delete_supplier(
+        db,
+        supplier_id,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Supplier not found",
+        )
+
+    return {
+        "message": "Supplier deleted"
     }

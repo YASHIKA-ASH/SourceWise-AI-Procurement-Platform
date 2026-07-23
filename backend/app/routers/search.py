@@ -1,21 +1,31 @@
-from fastapi import APIRouter, Depends
-
+from fastapi import APIRouter
 from pydantic import BaseModel
-from app.dependencies import get_current_user
-from app.rag.vectordb import search
 
-router = APIRouter(tags=["Search"])
+from app.ai.copilot import ask_copilot
 
-current_user=Depends(get_current_user)
-
-class Query(BaseModel):
-    question: str
+router = APIRouter(
+    prefix="/search",
+    tags=["AI Search"]
+)
 
 
-@router.post("/search")
+class SearchRequest(BaseModel):
+    query: str
 
-def semantic_search(data: Query):
 
-    results = search(data.question)
+@router.post("/")
+def search(data: SearchRequest):
 
-    return results
+    prompt = f"""
+Answer only procurement related questions.
+
+Question:
+{data.query}
+"""
+
+    answer = ask_copilot(prompt)
+
+    return {
+        "query": data.query,
+        "answer": answer
+    }

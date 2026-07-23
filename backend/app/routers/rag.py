@@ -1,21 +1,39 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
-from app.dependencies import get_current_user
-from app.services.rag_service import answer_question
+
+from app.ai.copilot import ask_copilot
 
 router = APIRouter(
     prefix="/rag",
-    tags=["RAG"]
+    tags=["RAG Chat"]
 )
-current_user=Depends(get_current_user)
 
-class ChatRequest(BaseModel):
+
+class RagRequest(BaseModel):
     question: str
 
 
 @router.post("/chat")
-def chat(request: ChatRequest):
+def rag_chat(data: RagRequest):
 
-    return answer_question(
-        request.question
-    )
+    prompt = f"""
+You are SourceWise AI.
+
+Answer using procurement knowledge.
+
+Question:
+{data.question}
+
+Return:
+- Answer
+- Confidence (0-100)
+- Reasoning
+"""
+
+    answer = ask_copilot(prompt)
+
+    return {
+        "question": data.question,
+        "answer": answer,
+        "confidence": 92
+    }

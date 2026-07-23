@@ -1,6 +1,7 @@
 import json
 import os
 from time import perf_counter
+from urllib import request
 
 from fastapi import Depends, FastAPI, Request
 from pydantic import BaseModel
@@ -15,18 +16,18 @@ from app.database.database import (
 )
 from app.dependencies import require_manager
 from app.models.supplier import Supplier
-# from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 # from fastapi import Depends
 # from fastapi import Request
-
+from sqlalchemy import CacheKey, text
 # from app.routers.analytics import router as analytics_router
-# from app.routers.report import router as report_router
+from app.routers.report import router as report_router
 from app.routers.auth import router as auth_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.supplier import router as supplier_router
 from app.decision_engine import evaluate
 from app.services.insights import generate_insights
-from app.routers.upload import router as upload_router
+# from app.routers.upload import router as upload_router
 # from app.routers.ranking import router as ranking_router
 # from app.routers.metrics import router as metrics_router
 from app.routers.copilot import router as copilot_router
@@ -35,7 +36,7 @@ from app.routers.user import router as user_router
 from app.routers.rag import router as rag_router
 from app.routers.search import router as search_router
 # from app.routers.chat import router as chat_router
-from app.aws.logger import logger
+# from app.aws.logger import logger
 # from app.routers import risk
 # from app.routers import cost_optimizer
 
@@ -54,6 +55,16 @@ from app.database.redis import redis_client
 print("========== MAIN START ==========")
 
 app = FastAPI(title="SourceWise")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 print("FastAPI app created")
 
@@ -64,6 +75,13 @@ def startup_event():
     print("========== STARTUP ==========")
 
     db = SessionLocal()
+    
+
+    result = db.execute(
+        text("SELECT id, username FROM users")
+    ).fetchall()
+
+    print("Users seen by backend:", result)
 
     print("Database session created")
 
@@ -97,7 +115,7 @@ print("Registering routers...")
 
 app.include_router(copilot_router)
 # app.include_router(analytics_router)
-# app.include_router(report_router)
+app.include_router(report_router)
 app.include_router(supplier_router)
 # app.include_router(ranking_router)
 # app.include_router(metrics_router)
@@ -109,7 +127,7 @@ app.include_router(dashboard_router)
 # app.include_router(cost_optimizer.router)
 app.include_router(auth_router)
 app.include_router(user_router)
-app.include_router(upload_router)
+# app.include_router(upload_router)
 
 print("Routers registered")
 
@@ -145,7 +163,10 @@ def simulate(
         f"{data.daily_usage}"
     )
 
-    cached = redis_client.get(cache_key)
+    try:
+        cached = redis_client.get(cache_key)
+    except Exception:
+        cached = None
 
     if cached:
 
@@ -197,13 +218,15 @@ def simulate(
         "ai_insights": generate_insights(result[0])
     }
 
-    redis_client.setex(
-        cache_key,
-        300,
-        json.dumps(response)
-    )
-
-    total_time = perf_counter() - start
+    try:
+        redis_client.setex(
+            CacheKey,
+            300,
+            json.dumps(response)
+        )
+    except Exception:
+        pass
+        total_time = perf_counter() - start
 
     print(f"API Time: {total_time:.3f} sec")
 

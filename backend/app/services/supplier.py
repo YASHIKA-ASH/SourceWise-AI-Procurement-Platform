@@ -18,7 +18,39 @@ def create_supplier(db: Session, supplier: SupplierCreate):
 
     return new_supplier
 
-        
+def update_supplier(db, supplier_id, data):
+    supplier = (
+        db.query(Supplier)
+        .filter(Supplier.id == supplier_id)
+        .first()
+    )
+
+    if not supplier:
+        return None
+
+    for key, value in data.dict().items():
+        setattr(supplier, key, value)
+
+    db.commit()
+    db.refresh(supplier)
+
+    return supplier
+
+
+def delete_supplier(db, supplier_id):
+    supplier = (
+        db.query(Supplier)
+        .filter(Supplier.id == supplier_id)
+        .first()
+    )
+
+    if not supplier:
+        return False
+
+    db.delete(supplier)
+    db.commit()
+
+    return True     
 
 
 def get_suppliers(db: Session):
