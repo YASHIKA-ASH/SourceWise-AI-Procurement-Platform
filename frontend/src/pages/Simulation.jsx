@@ -1,84 +1,173 @@
-import { useState, useEffect } from 'react'
-import { procurementAPI } from '../utils/api'
-import SimulationForm from '../components/SimulationForm'
-import SupplierComparison from '../components/SupplierComparison'
-import DecisionSummary from '../components/DecisionSummary'
-import ProcurementCharts from '../components/ProcurementCharts'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+import { useState } from "react";
+import { procurementAPI } from "../api/api";
+import toast from "react-hot-toast";
 
-function Simulation() {
-  const [suppliers, setSuppliers] = useState([])
-  const [simulationResult, setSimulationResult] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [formLoading, setFormLoading] = useState(true)
+export default function Simulation() {
+  const [form, setForm] = useState({
+    quantity: "",
+    inventory: "",
+    daily_usage: "",
+  });
 
-  // Fetch suppliers on mount
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        setFormLoading(true)
-        const response = await procurementAPI.getSuppliers()
-        setSuppliers(response.data.suppliers || [])
-      } catch (error) {
-        console.error('Failed to fetch suppliers:', error)
-        toast.error('Failed to load suppliers')
-      } finally {
-        setFormLoading(false)
-      }
-    }
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
 
-    fetchSuppliers()
-  }, [])
+  function handleChange(e) {
+    setForm({
+      ...form,
+      [e.target.name]: Number(e.target.value),
+    });
+  }
 
-  const handleSimulation = async (formData) => {
+  async function handleSubmit(e) {
+    e.preventDefault();
+
     try {
-      setLoading(true)
-      const response = await procurementAPI.simulate(formData)
-      setSimulationResult(response.data)
-      toast.success('Simulation completed successfully!')
-    } catch (error) {
-      console.error('Simulation failed:', error)
-      toast.error(error.response?.data?.message || 'Simulation failed. Please try again.')
+      setLoading(true);
+
+      const res = await procurementAPI.simulate(form);
+
+      setResult(res.data);
+
+      toast.success("Simulation Completed");
+    } catch (err) {
+      console.error(err);
+      toast.error("Simulation Failed");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
     <div className="space-y-8">
-      {/* Form Section */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Procurement Simulation</h2>
-        {formLoading ? (
-          <LoadingSpinner />
-        ) : (
-          <SimulationForm suppliers={suppliers} onSubmit={handleSimulation} loading={loading} />
-        )}
+
+      <div>
+        <h1 className="text-3xl font-bold">
+          Procurement Simulation
+        </h1>
+
+        <p className="text-gray-500">
+          Compare suppliers using AI scoring.
+        </p>
       </div>
 
-      {/* Results Section */}
-      {simulationResult && !loading && (
-        <>
-          {/* Decision Summary */}
-          <DecisionSummary result={simulationResult} />
+      <div className="bg-white rounded-xl shadow p-8">
 
-          {/* Supplier Comparison Table */}
-          <SupplierComparison suppliers={simulationResult.supplier_scores} />
+        <form
+          onSubmit={handleSubmit}
+          className="grid md:grid-cols-3 gap-5"
+        >
 
-          {/* Charts */}
-          <ProcurementCharts result={simulationResult} />
-        </>
-      )}
+          <div>
+            <label className="font-semibold">
+              Required Quantity
+            </label>
 
-      {loading && (
-        <div className="bg-white p-12 rounded-lg border border-gray-200 text-center">
-          <LoadingSpinner />
-          <p className="text-gray-600 mt-4">Running procurement analysis...</p>
+            <input
+              type="number"
+              name="quantity"
+              value={form.quantity}
+              onChange={handleChange}
+              className="mt-2 w-full border rounded-lg p-3"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="font-semibold">
+              Current Inventory
+            </label>
+
+            <input
+              type="number"
+              name="inventory"
+              value={form.inventory}
+              onChange={handleChange}
+              className="mt-2 w-full border rounded-lg p-3"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="font-semibold">
+              Daily Usage
+            </label>
+
+            <input
+              type="number"
+              name="daily_usage"
+              value={form.daily_usage}
+              onChange={handleChange}
+              className="mt-2 w-full border rounded-lg p-3"
+              required
+            />
+          </div>
+
+          <div className="md:col-span-3">
+
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg"
+            >
+              {loading ? "Running..." : "Run Simulation"}
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+      {result && (
+
+        <div className="bg-white rounded-xl shadow p-8">
+
+          <h2 className="text-2xl font-bold mb-6">
+            AI Recommendation
+          </h2>
+
+          <div className="grid md:grid-cols-2 gap-6">
+
+            <div className="border rounded-lg p-5">
+              <h3 className="font-semibold mb-2">
+                Best Supplier
+              </h3>
+
+              <p className="text-3xl font-bold text-blue-600">
+                {result.best_supplier || "N/A"}
+              </p>
+            </div>
+
+            <div className="border rounded-lg p-5">
+              <h3 className="font-semibold mb-2">
+                Score
+              </h3>
+
+              <p className="text-3xl font-bold text-green-600">
+                {result.score || result.overall_score || 0}
+              </p>
+            </div>
+
+          </div>
+
+          <div className="mt-8">
+
+            <h3 className="text-xl font-semibold mb-2">
+              AI Explanation
+            </h3>
+
+            <div className="bg-gray-100 rounded-lg p-5 whitespace-pre-wrap">
+              {result.explanation ||
+                result.reason ||
+                result.message ||
+                "Recommendation generated successfully."}
+            </div>
+
+          </div>
+
         </div>
-      )}
-    </div>
-  )
-}
 
-export default Simulation
+      )}
+
+    </div>
+  );
+}

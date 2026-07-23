@@ -1,105 +1,122 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api/api";
+import { Lock, User } from "lucide-react";
+import toast from "react-hot-toast";
+
+import { procurementAPI } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+  });
+
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(e) {
+  function handleChange(e) {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
 
     try {
       setLoading(true);
 
-      const form = new FormData();
-      form.append("username", username);
-      form.append("password", password);
+      const res = await procurementAPI.login(form);
 
-      const res = await api.post("/auth/login", form);
+      const token =
+        res.data.access_token ||
+        res.data.token ||
+        res.data;
 
-      login(res.data.access_token);
+      login(token);
+
+      toast.success("Login Successful");
 
       navigate("/dashboard");
     } catch (err) {
-      alert("Invalid Credentials");
+      console.error(err);
+      toast.error("Invalid Credentials");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#EEF2FF",
-      }}
-    >
-      <form
-        onSubmit={handleLogin}
-        style={{
-          width: 400,
-          background: "#fff",
-          padding: 40,
-          borderRadius: 15,
-          boxShadow: "0 10px 30px rgba(0,0,0,.1)",
-        }}
-      >
-        <h1>SourceWise</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center">
 
-        <p>AI Procurement Platform</p>
+      <div className="bg-white rounded-2xl shadow-2xl w-[420px] p-8">
 
-        <input
-          placeholder="Username"
-          value={username}
-          onChange={(e) =>
-            setUsername(e.target.value)
-          }
-          style={{
-            width: "100%",
-            padding: 12,
-            marginTop: 20,
-          }}
-        />
+        <h1 className="text-3xl font-bold text-center text-blue-700">
+          SourceWise AI
+        </h1>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
-          style={{
-            width: "100%",
-            padding: 12,
-            marginTop: 15,
-          }}
-        />
+        <p className="text-center text-gray-500 mt-2 mb-8">
+          Procurement Decision Platform
+        </p>
 
-        <button
-          type="submit"
-          style={{
-            width: "100%",
-            marginTop: 20,
-            padding: 14,
-            background: "#2563EB",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
         >
-          {loading ? "Signing In..." : "Login"}
-        </button>
-      </form>
+
+          <div className="relative">
+
+            <User
+              className="absolute left-3 top-3 text-gray-400"
+              size={20}
+            />
+
+            <input
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={form.username}
+              onChange={handleChange}
+              className="w-full border rounded-lg py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+
+          </div>
+
+          <div className="relative">
+
+            <Lock
+              className="absolute left-3 top-3 text-gray-400"
+              size={20}
+            />
+
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={handleChange}
+              className="w-full border rounded-lg py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+
+          </div>
+
+          <button
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 font-semibold transition"
+          >
+            {loading ? "Signing In..." : "Login"}
+          </button>
+
+        </form>
+
+      </div>
+
     </div>
   );
 }

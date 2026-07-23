@@ -1,24 +1,31 @@
+import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
-export default function Layout({ children }) {
+export default function Layout() {
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="h-screen bg-slate-100 flex overflow-hidden">
+
+      {/* Sidebar */}
       <Sidebar />
 
-      <div
-        style={{
-          flex: 1,
-          marginLeft: 250,
-          background: "#F8FAFC",
-        }}
-      >
+      {/* Main Content */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+
+        {/* Top Navbar */}
         <Navbar />
 
-        <div style={{ padding: 30 }}>
-          {children}
-        </div>
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto bg-slate-100 p-8">
+
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+
+        </main>
+
       </div>
+
     </div>
   );
 }

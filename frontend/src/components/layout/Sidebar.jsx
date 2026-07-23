@@ -1,109 +1,164 @@
 import {
   LayoutDashboard,
   Truck,
-  Brain,
-  FileBarChart,
+  Cpu,
+  BarChart3,
   Bot,
-  Database,
+  BookOpen,
+  FileText,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 
-import { Link, useLocation } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const menu = [
   {
     title: "Dashboard",
-    icon: LayoutDashboard,
     path: "/dashboard",
+    icon: LayoutDashboard,
   },
   {
     title: "Suppliers",
-    icon: Truck,
     path: "/suppliers",
+    icon: Truck,
   },
   {
     title: "Simulation",
-    icon: Brain,
     path: "/simulation",
+    icon: Cpu,
   },
   {
-    title: "Reports",
-    icon: FileBarChart,
-    path: "/reports",
+    title: "Analytics",
+    path: "/analytics",
+    icon: BarChart3,
   },
   {
     title: "AI Copilot",
-    icon: Bot,
     path: "/copilot",
+    icon: Bot,
   },
   {
-    title: "RAG",
-    icon: Database,
+    title: "RAG Assistant",
     path: "/rag",
+    icon: BookOpen,
+  },
+  {
+    title: "Reports",
+    path: "/reports",
+    icon: FileText,
   },
 ];
 
 export default function Sidebar() {
-  const location = useLocation();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate("/");
+  }
 
   return (
-    <div
-      style={{
-        width: 250,
-        height: "100vh",
-        background: "#131C2E",
-        color: "white",
-        position: "fixed",
-      }}
-    >
-      <h2
-        style={{
-          padding: 25,
-          borderBottom: "1px solid #2E3A4F",
-        }}
-      >
-        SourceWise
-      </h2>
+    <aside className="w-72 bg-slate-950 text-white flex flex-col shadow-2xl">
 
-      {menu.map((item) => {
-        const Icon = item.icon;
+      {/* Logo */}
 
-        return (
-          <Link
-            key={item.path}
-            to={item.path}
-            style={{
-              display: "flex",
-              gap: 15,
-              padding: 18,
-              color: "white",
-              textDecoration: "none",
-              background:
-                location.pathname === item.path
-                  ? "#2563EB"
-                  : "transparent",
-            }}
-          >
-            <Icon size={20} />
+      <div className="px-8 py-8 border-b border-slate-800">
 
-            {item.title}
-          </Link>
-        );
-      })}
+        <div className="flex items-center gap-3">
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: 30,
-          left: 20,
-          display: "flex",
-          gap: 10,
-        }}
-      >
-        <LogOut />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center">
 
-        Logout
+            <Sparkles size={24} />
+
+          </div>
+
+          <div>
+
+            <h1 className="text-2xl font-bold">
+              SourceWise
+            </h1>
+
+            <p className="text-xs text-slate-400">
+              AI Procurement Platform
+            </p>
+
+          </div>
+
+        </div>
+
       </div>
-    </div>
+
+      {/* Navigation */}
+
+      <div className="flex-1 px-4 py-6 space-y-2">
+
+        {menu.map((item) => {
+
+          const Icon = item.icon;
+
+          return (
+
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `group flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 ${
+                  isActive
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-500 shadow-lg"
+                    : "hover:bg-slate-800"
+                }`
+              }
+            >
+
+              <Icon
+                size={21}
+                className="group-hover:scale-110 transition-transform"
+              />
+
+              <span className="font-medium">
+                {item.title}
+              </span>
+
+            </NavLink>
+
+          );
+
+        })}
+
+      </div>
+
+      {/* Footer */}
+
+      <div className="border-t border-slate-800 p-5">
+
+        <div className="mb-5 rounded-xl bg-slate-900 p-4">
+
+          <p className="text-sm text-slate-400">
+            Logged in as
+          </p>
+
+          <p className="font-semibold text-white">
+            Procurement Manager
+          </p>
+
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-3 rounded-xl bg-red-500 hover:bg-red-600 transition py-3 font-semibold"
+        >
+
+          <LogOut size={18} />
+
+          Logout
+
+        </button>
+
+      </div>
+
+    </aside>
   );
 }

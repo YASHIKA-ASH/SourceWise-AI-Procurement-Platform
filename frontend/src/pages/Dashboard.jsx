@@ -1,182 +1,364 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowRight, TrendingUp, Users, Package } from 'lucide-react'
-import { procurementAPI } from '../utils/api'
-import StatCard from '../components/StatCard'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
-export default Dashboard
-function Dashboard() {
-  const [stats, setStats] = useState({
-    totalSuppliers: 0,
-    avgLeadTime: 0,
-    costSavings: 0,
-    activeProcurements: 0,
-  })
-  const [loading, setLoading] = useState(true)
-  const [analytics, setAnalytics] = useState(null)
+import { useEffect, useState } from "react";
+import {
+  Users,
+  Clock3,
+  DollarSign,
+  ShieldCheck,
+  TrendingUp,
+  Sparkles,
+  TriangleAlert,
+  Trophy,
+} from "lucide-react";
+
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { procurementAPI } from "../api/api";
+
+export default function Dashboard() {
+  const [overview, setOverview] = useState(null);
+  const [risk, setRisk] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-  try {
-    setLoading(true);
+    loadDashboard();
+  }, []);
 
-    const [overview, risk] = await Promise.all([
-      procurementAPI.getOverview(),
-      procurementAPI.getRiskAnalysis(),
-    ]);
+  async function loadDashboard() {
+    try {
+      const [overviewRes, riskRes] = await Promise.all([
+        procurementAPI.getOverview(),
+        procurementAPI.getRiskAnalysis(),
+      ]);
 
-    const overviewData = overview.data;
-    const riskData = risk.data;
-
-    setAnalytics({
-      ...overviewData,
-      ...riskData,
-    });
-
-    setStats({
-      totalSuppliers: overviewData.suppliers_count || 0,
-      avgLeadTime: overviewData.avg_lead_time || 0,
-      costSavings: overviewData.lowest_cost || 0,
-      activeProcurements:
-        (riskData.summary?.low_risk || 0) +
-        (riskData.summary?.medium_risk || 0) +
-        (riskData.summary?.high_risk || 0),
-    });
-  } catch (error) {
-    console.error(error);
-    toast.error("Failed to load dashboard data");
-  } finally {
-    setLoading(false);
+      setOverview(overviewRes.data);
+      setRisk(riskRes.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
-};
-
-    fetchDashboardData()
-  }, [])
 
   if (loading) {
-    return <LoadingSpinner />
+    return (
+      <div className="h-[70vh] flex items-center justify-center">
+        <div className="text-xl font-semibold text-slate-600">
+          Loading Dashboard...
+        </div>
+      </div>
+    );
   }
+
+  const cards = [
+    {
+      title: "Suppliers",
+      value: overview?.suppliers_count ?? 0,
+      icon: Users,
+      color: "bg-blue-500",
+    },
+    {
+      title: "Lead Time",
+      value: `${overview?.avg_lead_time ?? 0} Days`,
+      icon: Clock3,
+      color: "bg-green-500",
+    },
+    {
+      title: "Lowest Cost",
+      value: `$${overview?.lowest_cost ?? 0}`,
+      icon: DollarSign,
+      color: "bg-purple-500",
+    },
+    {
+      title: "Low Risk",
+      value: risk?.summary?.low_risk ?? 0,
+      icon: ShieldCheck,
+      color: "bg-emerald-500",
+    },
+  ];
+
+  const riskChart = [
+    {
+      name: "Low",
+      value: risk?.summary?.low_risk ?? 0,
+    },
+    {
+      name: "Medium",
+      value: risk?.summary?.medium_risk ?? 0,
+    },
+    {
+      name: "High",
+      value: risk?.summary?.high_risk ?? 0,
+    },
+  ];
+
+  const supplierChart =
+    risk?.suppliers?.map((item) => ({
+      name: item.supplier,
+      score: item.overall_score,
+    })) || [];
+
+  const COLORS = ["#22c55e", "#f59e0b", "#ef4444"];
+
+  const bestSupplier =
+    risk?.suppliers?.reduce((a, b) =>
+      a.overall_score > b.overall_score ? a : b
+    ) || null;
 
   return (
     <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-8 rounded-lg">
-        <h1 className="text-3xl font-bold mb-2">Welcome to SourceWise</h1>
-        <p className="text-blue-100">
-          AI-powered procurement decision support platform. Make confident supplier choices with
-          transparent, explainable scoring.
-        </p>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Active Suppliers"
-          value={stats.totalSuppliers}
-          icon={<Users className="text-blue-600" />}
-          trend="+12%"
-        />
-        <StatCard
-          title="Avg Lead Time"
-          value={`${stats.avgLeadTime} days`}
-          icon={<TrendingUp className="text-green-600" />}
-          trend="-8%"
-        />
-        <StatCard
-          title="Cost Savings"
-          value={`$${(stats.costSavings / 1000).toFixed(1)}K`}
-          icon={<Package className="text-purple-600" />}
-          trend="+23%"
-        />
-        <StatCard
-          title="Active Procurements"
-          value={stats.activeProcurements}
-          icon={<TrendingUp className="text-orange-600" />}
-          trend={`+${Math.floor(stats.activeProcurements * 0.15)}`}
-        />
-      </div>
+      {/* Header */}
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link
-          to="/simulation"
-          className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-lg transition cursor-pointer group"
-        >
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">New Simulation</h3>
-            <ArrowRight className="text-blue-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-gray-600">
-            Run a procurement simulation to compare suppliers and get AI recommendations.
+      <div className="flex justify-between items-center">
+
+        <div>
+
+          <h1 className="text-4xl font-bold text-slate-800">
+            Executive Dashboard
+          </h1>
+
+          <p className="text-slate-500 mt-2">
+            AI-powered procurement overview
           </p>
-        </Link>
 
-        <Link
-          to="/analytics"
-          className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-lg transition cursor-pointer group"
-        >
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">View Analytics</h3>
-            <ArrowRight className="text-green-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-gray-600">
-            Explore procurement trends, supplier performance, and cost analysis.
-          </p>
-        </Link>
-
-        <Link
-          to="/reports"
-          className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-lg transition cursor-pointer group"
-        >
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Download Reports</h3>
-            <ArrowRight className="text-purple-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-gray-600">
-            Generate and download PDF procurement reports with detailed analysis.
-          </p>
-        </Link>
-      </div>
-
-      {/* Analytics Summary */}
-      {analytics && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Metrics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Total Procurements</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {analytics.suppliers_count|| 0}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Avg Score</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {analytics.avg_lead_time?.toFixed(1) || '0.0'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Top Supplier</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {analytics.suppliers?.[0]?.supplier || "N/A"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Avg Risk Level</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {analytics.summary.high_risk > 0
-  ? "High"
-  : analytics.summary.medium_risk > 0
-  ? "Medium"
-  : "Low" || 'Medium'}
-              </p>
-            </div>
-          </div>
         </div>
-      )}
+
+        <div className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-2xl px-6 py-4 shadow-lg flex items-center gap-3">
+
+          <Sparkles />
+
+          <div>
+
+            <p className="text-sm opacity-90">
+              AI Status
+            </p>
+
+            <h3 className="font-bold">
+              Operational
+            </h3>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* KPI */}
+
+      <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6">
+
+        {cards.map((card) => {
+          const Icon = card.icon;
+
+          return (
+            <div
+              key={card.title}
+              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition p-6"
+            >
+              <div
+                className={`${card.color} w-16 h-16 rounded-2xl text-white flex items-center justify-center mb-6`}
+              >
+                <Icon size={30} />
+              </div>
+
+              <p className="text-slate-500">
+                {card.title}
+              </p>
+
+              <h2 className="text-4xl font-bold mt-2">
+                {card.value}
+              </h2>
+
+            </div>
+          );
+        })}
+
+      </div>
+
+      {/* Charts */}
+
+      <div className="grid lg:grid-cols-2 gap-8">
+
+        <div className="bg-white rounded-2xl shadow-md p-6">
+
+          <h2 className="text-xl font-bold mb-6">
+            Supplier Performance
+          </h2>
+
+          <ResponsiveContainer width="100%" height={320}>
+
+            <BarChart data={supplierChart}>
+
+              <CartesianGrid strokeDasharray="3 3" />
+
+              <XAxis dataKey="name" />
+
+              <YAxis />
+
+              <Tooltip />
+
+              <Bar dataKey="score" radius={[8,8,0,0]} />
+
+            </BarChart>
+
+          </ResponsiveContainer>
+
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-md p-6">
+
+          <h2 className="text-xl font-bold mb-6">
+            Risk Distribution
+          </h2>
+
+          <ResponsiveContainer width="100%" height={320}>
+
+            <PieChart>
+
+              <Pie
+                data={riskChart}
+                dataKey="value"
+                outerRadius={110}
+                label
+              >
+                {riskChart.map((entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={COLORS[index]}
+                  />
+                ))}
+              </Pie>
+
+              <Tooltip />
+
+            </PieChart>
+
+          </ResponsiveContainer>
+
+        </div>
+
+      </div>
+
+      {/* Bottom Cards */}
+
+      <div className="grid lg:grid-cols-3 gap-8">
+
+        <div className="bg-white rounded-2xl shadow-md p-6">
+
+          <div className="flex items-center gap-3 mb-5">
+
+            <Trophy className="text-yellow-500" />
+
+            <h2 className="font-bold text-xl">
+              Best Supplier
+            </h2>
+
+          </div>
+
+          {bestSupplier && (
+            <>
+              <h3 className="text-2xl font-bold">
+                {bestSupplier.supplier}
+              </h3>
+
+              <p className="mt-2 text-slate-500">
+                Overall Score
+              </p>
+
+              <div className="text-5xl font-bold text-blue-600 mt-3">
+                {bestSupplier.overall_score}
+              </div>
+            </>
+          )}
+
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-md p-6">
+
+          <div className="flex items-center gap-3 mb-5">
+
+            <TrendingUp className="text-green-600" />
+
+            <h2 className="font-bold text-xl">
+              AI Insight
+            </h2>
+
+          </div>
+
+          <p className="text-slate-600 leading-7">
+            Supplier performance remains stable with consistently low
+            procurement risk. Current sourcing strategy minimizes lead
+            time while maintaining competitive pricing.
+          </p>
+
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-md p-6">
+
+          <div className="flex items-center gap-3 mb-5">
+
+            <TriangleAlert className="text-red-500" />
+
+            <h2 className="font-bold text-xl">
+              Risk Summary
+            </h2>
+
+          </div>
+
+          <div className="space-y-4">
+
+            {risk?.suppliers?.map((supplier) => (
+
+              <div
+                key={supplier.supplier}
+                className="flex justify-between items-center border rounded-xl p-4"
+              >
+
+                <div>
+
+                  <h4 className="font-semibold">
+                    {supplier.supplier}
+                  </h4>
+
+                  <p className="text-sm text-slate-500">
+                    Risk Score: {supplier.risk_score}
+                  </p>
+
+                </div>
+
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    supplier.risk_level === "Low"
+                      ? "bg-green-100 text-green-700"
+                      : supplier.risk_level === "Medium"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {supplier.risk_level}
+                </span>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
-  )
+  );
 }
-
-
