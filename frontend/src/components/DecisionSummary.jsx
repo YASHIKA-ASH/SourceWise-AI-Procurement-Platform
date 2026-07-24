@@ -29,7 +29,7 @@ function DecisionSummary({ result }) {
   }
 
   return (
-    <div className={`p-8 rounded-lg border ${getRiskColor(riskLevel)}`}>
+    <div className={`p-10 rounded-lg border ${getRiskColor(riskLevel)}`}>
       <div className="flex items-start gap-4 mb-6">
         {getRiskIcon(riskLevel)}
         <div className="flex-1">

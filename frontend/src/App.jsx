@@ -18,7 +18,7 @@ import Reports from "./pages/Reports";
 import Copilot from "./pages/Copilot";
 import Rag from "./pages/Rag";
 import NotFound from "./pages/NotFound";
-
+import Register from "./pages/Register";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -41,6 +41,8 @@ export default function App() {
         <Route path="/copilot" element={<Copilot />} />
         <Route path="/rag" element={<Rag />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

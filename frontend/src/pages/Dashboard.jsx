@@ -124,7 +124,7 @@ export default function Dashboard() {
 
         <div>
 
-          <h1 className="text-4xl font-bold text-slate-800">
+          <h1 className=" font-bold text-slate-800">
             Executive Dashboard
           </h1>
 

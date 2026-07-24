@@ -69,7 +69,7 @@ function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="p-8">
+        <main className="p-10">
           <Outlet />
         </main>
       </div>

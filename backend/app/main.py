@@ -2,7 +2,7 @@ import json
 import os
 from time import perf_counter
 from urllib import request
-
+from app.seed import seed_demo_user
 from fastapi import Depends, FastAPI, Request
 from pydantic import BaseModel
 
@@ -71,6 +71,7 @@ print("FastAPI app created")
 
 @app.on_event("startup")
 def startup_event():
+    seed_demo_user()
 
     print("========== STARTUP ==========")
 
