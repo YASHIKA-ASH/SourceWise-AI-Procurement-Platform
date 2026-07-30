@@ -1,0 +1,22 @@
+{
+    email {$TLS_EMAIL}
+}
+
+{$API_DOMAIN} {
+    encode zstd gzip
+
+    reverse_proxy backend:8000
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/caddy-access.log
+        format json
+    }
+}

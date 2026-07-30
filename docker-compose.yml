@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: procurement
+      POSTGRES_USER: procurement
+      POSTGRES_PASSWORD: procurement
+    ports:
+      - "5432:5432"
+    volumes:
+      - procurement_data:/var/lib/postgresql/data
+
+volumes:
+  procurement_data:

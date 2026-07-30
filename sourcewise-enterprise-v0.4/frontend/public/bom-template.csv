@@ -1,0 +1,3 @@
+part_name,category,required_quantity,current_inventory,reserved_inventory,safety_stock,minimum_order_quantity,required_delivery_date,is_critical
+Example Motor,Mechanical,10000,500,100,300,500,2026-09-30,true
+Example Housing,Plastics,10000,2000,0,200,250,2026-09-25,false

@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
+backend/.env
+backend/procurement.db
+backend/chroma_db/
+backend/logs/
+frontend/node_modules/
+frontend/dist/
+.deploy.env
+logs/*.log
+.env
+.DS_Store

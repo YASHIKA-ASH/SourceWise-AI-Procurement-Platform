@@ -1,0 +1,69 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [sourcewise]
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      ENVIRONMENT: production
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      LOG_FILE: /var/log/sourcewise/app.log
+      CHROMA_PATH: /app/chroma_db
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/var/log/sourcewise
+      - chroma_data:/app/chroma_db
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [sourcewise]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      TLS_EMAIL: ${TLS_EMAIL}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./logs:/var/log/caddy
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [sourcewise]
+
+volumes:
+  redis_data:
+  chroma_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  sourcewise:
+    driver: bridge
