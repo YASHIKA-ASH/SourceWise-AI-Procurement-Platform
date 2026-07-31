@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://sourcewise-35-175-11-218.nip.io";
 
 const ACCESS_KEY = 'sourcewise_access_token'
 const REFRESH_KEY = 'sourcewise_refresh_token'
