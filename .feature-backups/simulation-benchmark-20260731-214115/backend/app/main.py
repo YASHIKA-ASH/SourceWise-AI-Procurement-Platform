@@ -10,7 +10,7 @@ from .database import Base, SessionLocal, engine
 from .dependencies import enforce_procurement_rbac
 from .models_enterprise import AuditEvent, ProcurementDocument, RefreshToken, User  # noqa: F401
 from .observability import RequestObservabilityMiddleware, configure_logging
-from .routers import admin, ai, analysis, auth, benchmark, health, products, storage, suppliers, users
+from .routers import admin, ai, analysis, auth, health, products, storage, suppliers, users
 from .seed import seed_database
 from .services.auth_service import bootstrap_initial_admin
 
@@ -30,10 +30,10 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.5.0",
+    version="0.4.0",
     description=(
         "BOM, supplier scoring, landed-cost, scenario analysis, Gemini RAG, JWT RBAC, "
-        "Redis caching, S3 document storage, 500-scenario benchmarking, and CloudWatch-ready observability."
+        "Redis caching, S3 document storage, and CloudWatch-ready observability."
     ),
     lifespan=lifespan,
 )
@@ -59,7 +59,6 @@ protected = [Depends(enforce_procurement_rbac)]
 app.include_router(products.router, dependencies=protected)
 app.include_router(suppliers.router, dependencies=protected)
 app.include_router(analysis.router, dependencies=protected)
-app.include_router(benchmark.router, dependencies=protected)
 app.include_router(ai.router, dependencies=protected)
 
 
@@ -69,6 +68,6 @@ def root():
         "name": settings.app_name,
         "docs": "/docs",
         "status": "running",
-        "version": "0.5.0",
+        "version": "0.4.0",
         "environment": settings.environment,
     }

@@ -263,8 +263,6 @@ export const api = {
     request(`/analysis/products/${productId}/recommendation?strategy=${strategy}`),
   scenario: (productId, payload) =>
     request(`/analysis/products/${productId}/scenario`, jsonOptions('POST', payload)),
-  simulationBenchmark: (productId, payload) =>
-    request(`/analysis/products/${productId}/benchmark`, jsonOptions('POST', payload)),
 
   aiStatus: () => request('/ai/status'),
   indexKnowledge: (productId, strategy = 'balanced') =>

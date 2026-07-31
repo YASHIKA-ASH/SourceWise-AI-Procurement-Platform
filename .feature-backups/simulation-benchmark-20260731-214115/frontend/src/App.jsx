@@ -4,7 +4,6 @@ import Badge from './components/Badge.jsx'
 import CostBreakdown from './components/CostBreakdown.jsx'
 import StatCard from './components/StatCard.jsx'
 import { formatMoney, formatNumber } from './format.js'
-import BenchmarkView from './BenchmarkView.jsx'
 
 const strategies = [
   ['balanced', 'Balanced'],
@@ -344,7 +343,6 @@ export default function App() {
             ['recommendations', '◎', 'Recommendations'],
             ['copilot', '✦', 'AI Copilot'],
             ['scenarios', '↗', 'Scenario simulation'],
-            ['benchmark', '∿', '500-scenario benchmark'],
             ['settings', '⚙', 'Scoring & filters'],
           ].map(([key, icon, label]) => (
             <button key={key} className={activeSection === key ? 'nav-item active' : 'nav-item'} onClick={() => setActiveSection(key)}>
@@ -444,7 +442,6 @@ export default function App() {
         {productId && activeSection === 'recommendations' && <RecommendationsView rows={allocationRows} expanded={expandedAllocation} setExpanded={setExpandedAllocation} />}
         {productId && activeSection === 'copilot' && <CopilotView productId={productId} product={selectedProduct} strategy={strategy} />}
         {productId && activeSection === 'scenarios' && <ScenarioView result={scenarioResult} runScenario={runScenario} suppliers={suppliers} settings={settings} setError={setError} />}
-        {productId && activeSection === 'benchmark' && <BenchmarkView productId={productId} product={selectedProduct} />}
         {productId && activeSection === 'settings' && settings && <SettingsView settings={settings} setSettings={setSettings} saveSettings={saveSettings} />}
       </main>
     </div>
@@ -459,7 +456,6 @@ function sectionTitle(section) {
     recommendations: 'Supplier recommendations',
     copilot: 'AI procurement copilot',
     scenarios: 'Scenario simulation',
-    benchmark: '500-scenario improvement benchmark',
     settings: 'Supplier scoring and filters',
   }[section]
 }

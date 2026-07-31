@@ -121,10 +121,6 @@ def score_offers(
 
 
 def _sort_scored(scored: list[dict[str, Any]], strategy: str) -> list[dict[str, Any]]:
-    if strategy == "manual_baseline":
-        # Deterministic first-feasible allocation approximates a manual process
-        # that accepts supplier offers in the order they were recorded.
-        return sorted(scored, key=lambda x: x["offer"].id)
     if strategy == "lowest_cost":
         return sorted(scored, key=lambda x: (x["landed_cost_per_unit"], -x["overall_score"]))
     if strategy == "lowest_risk":
@@ -271,8 +267,6 @@ def allocate_component(
 
 
 def _selection_reason(item: dict[str, Any], strategy: str) -> str:
-    if strategy == "manual_baseline":
-        return "Selected as the first feasible recorded supplier offer; used only as a benchmark baseline."
     if strategy == "lowest_cost":
         return "Selected for the lowest feasible landed cost while satisfying capacity and enterprise filters."
     if strategy == "lowest_risk":
