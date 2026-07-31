@@ -282,9 +282,66 @@ def _selection_reason(item: dict[str, Any], strategy: str) -> str:
     return "Selected for the strongest weighted balance of cost, quality, lead time, and risk."
 
 
-def product_recommendation(
+def _component_scarcity_key(
+    component: BOMComponent,
+    settings: EnterpriseSettings,
+    *,
+    demand_change_percentage: float = 0,
+    unavailable_supplier_ids: set[int] | None = None,
+    domestic_only: bool = False,
+) -> tuple[Any, ...]:
+    """Place difficult-to-source components before well-covered components.
+
+    The original implementation processed critical components first. That can
+    consume shared supplier capacity before a scarce component is evaluated.
+    This key estimates eligible capacity coverage so the allocation engine
+    reserves capacity for components with fewer feasible alternatives.
+    """
+
+    unavailable_supplier_ids = unavailable_supplier_ids or set()
+    required = net_requirement(component, demand_change_percentage)
+    if required <= 0:
+        return (1, float("inf"), float("inf"), not component.is_critical, component.required_delivery_date)
+
+    eligible_count = 0
+    effective_capacity = 0.0
+    max_share_quantity = required * settings.maximum_supplier_share_percentage / 100
+
+    for offer in component.offers:
+        if offer.supplier_id in unavailable_supplier_ids:
+            continue
+        is_eligible, _ = eligibility(offer, settings, domestic_only)
+        if not is_eligible:
+            continue
+
+        supplier = offer.supplier
+        capacity = max(float(supplier.available_capacity), 0.0)
+        if supplier.maximum_order_size > 0:
+            capacity = min(capacity, float(supplier.maximum_order_size))
+        capacity = min(capacity, max_share_quantity)
+
+        minimum_order = max(offer.minimum_order_quantity, component.default_minimum_order_quantity)
+        if settings.enforce_minimum_order_quantity and min(required, capacity) < minimum_order:
+            continue
+
+        eligible_count += 1
+        effective_capacity += capacity
+
+    coverage_ratio = effective_capacity / required if required else float("inf")
+    return (
+        0,
+        round(coverage_ratio, 8),
+        eligible_count,
+        not component.is_critical,
+        component.required_delivery_date,
+    )
+
+
+def _build_product_recommendation(
     product,
     settings: EnterpriseSettings,
+    *,
+    strategy: str,
     **kwargs,
 ) -> dict[str, Any]:
     capacity_remaining: dict[int, float] = {}
@@ -292,9 +349,30 @@ def product_recommendation(
         for offer in component.offers:
             capacity_remaining.setdefault(offer.supplier.id, offer.supplier.available_capacity)
 
+    demand_change_percentage = float(kwargs.get("demand_change_percentage", 0) or 0)
+    unavailable_supplier_ids = kwargs.get("unavailable_supplier_ids") or set()
+    domestic_only = bool(kwargs.get("domestic_only", False))
+
+    ordered_components = sorted(
+        product.components,
+        key=lambda component: _component_scarcity_key(
+            component,
+            settings,
+            demand_change_percentage=demand_change_percentage,
+            unavailable_supplier_ids=unavailable_supplier_ids,
+            domestic_only=domestic_only,
+        ),
+    )
+
     component_results = [
-        allocate_component(component, settings, capacity_remaining=capacity_remaining, **kwargs)
-        for component in sorted(product.components, key=lambda item: (not item.is_critical, item.required_delivery_date))
+        allocate_component(
+            component,
+            settings,
+            strategy=strategy,
+            capacity_remaining=capacity_remaining,
+            **kwargs,
+        )
+        for component in ordered_components
     ]
 
     total_cost = 0.0
@@ -323,6 +401,18 @@ def product_recommendation(
     average_risk = weighted_risk_numerator / total_allocated if total_allocated else 0
     largest_supplier_quantity = max(supplier_totals.values(), default=0)
     dependency = largest_supplier_quantity / total_allocated * 100 if total_allocated else 0
+    total_shortfall = sum(float(result.get("shortfall", 0) or 0) for result in component_results)
+
+    allocations = [
+        allocation
+        for result in component_results
+        for allocation in result.get("allocations", [])
+    ]
+    on_time_rate = (
+        sum(1 for allocation in allocations if allocation.get("on_time")) / len(allocations) * 100
+        if allocations
+        else 0.0
+    )
 
     selling_price = product.expected_selling_price
     profit = selling_price - total_cost if selling_price is not None else None
@@ -343,7 +433,7 @@ def product_recommendation(
 
     return {
         "product": {"id": product.id, "name": product.name, "sku": product.sku},
-        "strategy": kwargs.get("strategy", "balanced"),
+        "strategy": strategy,
         "component_results": component_results,
         "summary": {
             "final_product_procurement_cost": round(total_cost, 2),
@@ -353,11 +443,141 @@ def product_recommendation(
             "average_quality_score": round(average_quality, 2),
             "average_risk_exposure": round(average_risk, 2),
             "supplier_dependency_percentage": round(dependency, 2),
+            "on_time_allocation_rate": round(on_time_rate, 2),
+            "total_shortfall": round(total_shortfall, 2),
             "expected_profit": round(profit, 2) if profit is not None else None,
             "expected_profit_margin": round(margin, 2) if margin is not None else None,
             "target_status": target_status,
             "maximum_acceptable_cost": round(acceptable_cost, 2) if acceptable_cost is not None else None,
             "target_cost_variance": round(target_variance, 2) if target_variance is not None else None,
-            "all_components_fully_allocated": all(r["status"] in {"fully_allocated", "inventory_sufficient"} for r in component_results),
+            "all_components_fully_allocated": all(
+                result["status"] in {"fully_allocated", "inventory_sufficient"}
+                for result in component_results
+            ),
         },
     }
+
+
+def _is_guardrailed_candidate(
+    baseline: dict[str, Any],
+    candidate: dict[str, Any],
+) -> bool:
+    """Return True only when a candidate does not trade away core outcomes."""
+
+    baseline_summary = baseline["summary"]
+    candidate_summary = candidate["summary"]
+    tolerance = 1e-6
+
+    if not baseline_summary["all_components_fully_allocated"]:
+        return False
+    if not candidate_summary["all_components_fully_allocated"]:
+        return False
+
+    return (
+        candidate_summary["final_product_procurement_cost"]
+        <= baseline_summary["final_product_procurement_cost"] + tolerance
+        and candidate_summary["average_quality_score"] + tolerance
+        >= baseline_summary["average_quality_score"]
+        and candidate_summary["average_risk_exposure"]
+        <= baseline_summary["average_risk_exposure"] + tolerance
+        and candidate_summary["supplier_dependency_percentage"]
+        <= baseline_summary["supplier_dependency_percentage"] + tolerance
+        and candidate_summary["on_time_allocation_rate"] + tolerance
+        >= baseline_summary["on_time_allocation_rate"]
+    )
+
+
+def _select_guardrailed_plan(
+    baseline: dict[str, Any],
+    candidates: list[dict[str, Any]],
+) -> tuple[dict[str, Any], bool]:
+    """Select a feasible, non-dominated plan and fall back safely when needed."""
+
+    baseline_summary = baseline["summary"]
+
+    if baseline_summary["all_components_fully_allocated"]:
+        acceptable = [
+            candidate
+            for candidate in candidates
+            if _is_guardrailed_candidate(baseline, candidate)
+        ]
+        if not acceptable:
+            return baseline, True
+
+        selected = min(
+            acceptable,
+            key=lambda plan: (
+                plan["summary"]["final_product_procurement_cost"],
+                plan["summary"]["average_risk_exposure"],
+                -plan["summary"]["average_quality_score"],
+                -plan["summary"]["on_time_allocation_rate"],
+                plan["summary"]["supplier_dependency_percentage"],
+            ),
+        )
+        return selected, False
+
+    # When the baseline itself is infeasible, prefer complete allocation first,
+    # then the least shortfall and strongest risk/quality/on-time outcome.
+    selected = min(
+        [baseline, *candidates],
+        key=lambda plan: (
+            not plan["summary"]["all_components_fully_allocated"],
+            plan["summary"]["total_shortfall"],
+            plan["summary"]["average_risk_exposure"],
+            -plan["summary"]["average_quality_score"],
+            -plan["summary"]["on_time_allocation_rate"],
+            plan["summary"]["final_product_procurement_cost"],
+        ),
+    )
+    return selected, selected is baseline
+
+
+def product_recommendation(
+    product,
+    settings: EnterpriseSettings,
+    **kwargs,
+) -> dict[str, Any]:
+    """Generate a recommendation, applying multi-objective guardrails to balanced mode.
+
+    Balanced mode evaluates several feasible sourcing heuristics. It accepts an
+    alternative only when it does not worsen cost, quality, risk, supplier
+    dependency, on-time performance, or full allocation versus the documented
+    manual baseline. Otherwise, it falls back to that baseline. This prevents a
+    small cost saving from being reported as an improvement when reliability or
+    supplier quality deteriorates.
+    """
+
+    parameters = dict(kwargs)
+    requested_strategy = parameters.pop("strategy", "balanced")
+
+    if requested_strategy != "balanced":
+        return _build_product_recommendation(
+            product,
+            settings,
+            strategy=requested_strategy,
+            **parameters,
+        )
+
+    baseline = _build_product_recommendation(
+        product,
+        settings,
+        strategy="manual_baseline",
+        **parameters,
+    )
+    candidates = [
+        _build_product_recommendation(
+            product,
+            settings,
+            strategy=strategy,
+            **parameters,
+        )
+        for strategy in ("balanced", "lowest_cost", "lowest_risk", "fastest_delivery")
+    ]
+
+    selected, fallback_used = _select_guardrailed_plan(baseline, candidates)
+    selected_candidate_strategy = selected.get("strategy", "manual_baseline")
+    selected["strategy"] = "balanced"
+    selected["optimization_policy"] = "guardrailed_multi_objective"
+    selected["selected_candidate_strategy"] = selected_candidate_strategy
+    selected["guardrail_fallback_used"] = fallback_used
+    return selected

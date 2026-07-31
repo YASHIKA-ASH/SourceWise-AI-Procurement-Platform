@@ -14,7 +14,7 @@ RecommendationFunction = Callable[..., dict[str, Any]]
 
 STRATEGY_LABELS = {
     "manual_baseline": "First feasible supplier",
-    "balanced": "Balanced SourceWise optimization",
+    "balanced": "Guardrailed SourceWise optimization",
     "lowest_cost": "Lowest landed cost",
     "lowest_risk": "Lowest supplier risk",
     "fastest_delivery": "Fastest delivery",
@@ -356,6 +356,12 @@ def run_simulation_benchmark(
         },
         "methodology": {
             "comparison": "Both strategies receive the same randomized shock in each scenario.",
+            "optimization_policy": (
+                "Balanced mode evaluates weighted, lowest-cost, lowest-risk, and fastest-delivery "
+                "candidate plans. A candidate is accepted only when it is fully feasible and does "
+                "not worsen cost, quality, risk, supplier dependency, or on-time performance versus "
+                "the manual baseline; otherwise the baseline is used as a safe fallback."
+            ),
             "cost_metric_scope": (
                 "Cost, quality, risk, dependency, and profit comparisons use only scenarios "
                 "where both strategies fully allocate every component."

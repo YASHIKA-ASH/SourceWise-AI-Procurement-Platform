@@ -11,7 +11,7 @@ const baselineStrategies = [
 ]
 
 const optimizedStrategies = [
-  ['balanced', 'Balanced SourceWise optimization'],
+  ['balanced', 'Guardrailed SourceWise optimization'],
   ['lowest_cost', 'Lowest landed cost'],
   ['lowest_risk', 'Lowest supplier risk'],
   ['fastest_delivery', 'Fastest delivery'],
@@ -205,6 +205,7 @@ export default function BenchmarkView({ productId, product }) {
           <section className="panel benchmark-methodology">
             <p className="eyebrow">HOW TO INTERPRET THIS</p>
             <p>{result.methodology.comparison}</p>
+            {result.methodology.optimization_policy && <p>{result.methodology.optimization_policy}</p>}
             <p>{result.methodology.cost_metric_scope}</p>
             <p><strong>Important:</strong> {result.methodology.claim_limit}</p>
           </section>
