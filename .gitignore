@@ -16,3 +16,5 @@ logs/*.log
 # Local logs and backups
 logs/
 *.backup-*
+
+.feature-backups/
