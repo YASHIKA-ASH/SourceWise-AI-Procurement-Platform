@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { api, authStorage } from './api'
+import { API_URL, api, authStorage } from './api'
 
 const AuthContext = createContext(null)
 
@@ -9,7 +9,7 @@ export function useAuth() {
 
 export default function AuthGate({ children }) {
   const [user, setUser] = useState(authStorage.user())
-  const [checking, setChecking] = useState(Boolean(authStorage.accessToken()))
+  const [checking, setChecking] = useState(true)
   const [error, setError] = useState('')
   const [needsSetup, setNeedsSetup] = useState(false)
 
@@ -19,7 +19,11 @@ export default function AuthGate({ children }) {
     async function initialize() {
       try {
         const status = await api.authStatus()
-        if (!cancelled) setNeedsSetup(!status.configured)
+        if (cancelled) return
+
+        setNeedsSetup(!status?.configured)
+        setError('')
+
         if (authStorage.accessToken()) {
           const currentUser = await api.me()
           if (!cancelled) setUser(currentUser)
@@ -28,7 +32,7 @@ export default function AuthGate({ children }) {
         if (!cancelled) {
           authStorage.clear()
           setUser(null)
-          setError(err.message)
+          setError(err instanceof Error ? err.message : 'Could not initialize authentication.')
         }
       } finally {
         if (!cancelled) setChecking(false)
@@ -36,8 +40,10 @@ export default function AuthGate({ children }) {
     }
 
     initialize()
+
     const sync = () => setUser(authStorage.user())
     window.addEventListener('sourcewise-auth-changed', sync)
+
     return () => {
       cancelled = true
       window.removeEventListener('sourcewise-auth-changed', sync)
@@ -46,13 +52,14 @@ export default function AuthGate({ children }) {
 
   async function login(email, password) {
     setError('')
+
     try {
       const session = await api.login({ email, password })
       authStorage.save(session)
       setUser(session.user)
       return true
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.')
       return false
     }
   }
@@ -67,7 +74,15 @@ export default function AuthGate({ children }) {
   }
 
   if (checking) {
-    return <div className="auth-page"><div className="auth-card"><div className="spinner" /><p>Checking secure session…</p></div></div>
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="spinner" />
+          <p>Checking secure session…</p>
+          <small>API: {API_URL}</small>
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
@@ -77,7 +92,10 @@ export default function AuthGate({ children }) {
   return (
     <AuthContext.Provider value={{ user, logout }}>
       <div className="session-chip" title={`Signed in as ${user.email}`}>
-        <span><strong>{user.full_name}</strong><small>{user.role}</small></span>
+        <span>
+          <strong>{user.full_name}</strong>
+          <small>{user.role}</small>
+        </span>
         <button type="button" onClick={logout}>Sign out</button>
       </div>
       {children}
@@ -86,33 +104,87 @@ export default function AuthGate({ children }) {
 }
 
 function LoginScreen({ onLogin, error, needsSetup }) {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState('admin@sourcewise.com')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   async function submit(event) {
     event.preventDefault()
+    if (submitting) return
+
     setSubmitting(true)
-    await onLogin(email.trim(), password)
-    setSubmitting(false)
+
+    try {
+      await onLogin(email.trim(), password)
+    } finally {
+      // Always restore the button, including network, CORS, timeout and 401 errors.
+      setSubmitting(false)
+    }
   }
 
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <div className="auth-brand"><div className="brand-mark">S</div><div><strong>SourceWise</strong><span>Secure procurement intelligence</span></div></div>
+        <div className="auth-brand">
+          <div className="brand-mark">S</div>
+          <div>
+            <strong>SourceWise</strong>
+            <span>Secure procurement intelligence</span>
+          </div>
+        </div>
+
         <div>
           <p className="eyebrow">ENTERPRISE ACCESS</p>
           <h1>Sign in</h1>
-          <p className="auth-helper">Use your company account to access procurement data and AI recommendations.</p>
+          <p className="auth-helper">
+            Use your company account to access procurement data and AI recommendations.
+          </p>
         </div>
-        {needsSetup && <div className="alert error">No administrator exists. Add INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD to backend/.env, then restart the backend.</div>}
+
+        {needsSetup && (
+          <div className="alert error">
+            No administrator exists. Create the administrator in the EC2 backend before signing in.
+          </div>
+        )}
+
         {error && <div className="alert error">{error}</div>}
+
         <form className="auth-form" onSubmit={submit}>
-          <label><span>Email address</span><input type="email" required autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          <label><span>Password</span><input type="password" required minLength="8" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-          <button className="primary-button auth-submit" type="submit" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in securely'}</button>
+          <label>
+            <span>Email address</span>
+            <input
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={submitting}
+            />
+          </label>
+
+          <label>
+            <span>Password</span>
+            <input
+              type="password"
+              required
+              minLength="8"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={submitting}
+            />
+          </label>
+
+          <button
+            className="primary-button auth-submit"
+            type="submit"
+            disabled={submitting || !email.trim() || !password}
+          >
+            {submitting ? 'Signing in…' : 'Sign in securely'}
+          </button>
         </form>
+
+        <small className="auth-api-hint">Connected API: {API_URL}</small>
       </section>
     </main>
   )
