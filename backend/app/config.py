@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     gemini_api_key: str | None = None
     google_api_key: str | None = None
-    gemini_model: str = "gemini-2.5-flash-lite"
+    gemini_model: str = "gemini-3.5-flash-lite"
     chroma_path: str = str(BACKEND_DIR / "chroma_db")
 
     model_config = SettingsConfigDict(
