@@ -183,9 +183,7 @@ function LoginScreen({ onLogin, error, needsSetup }) {
             {submitting ? 'Signing in…' : 'Sign in securely'}
           </button>
         </form>
-
-        <small className="auth-api-hint">Connected API: {API_URL}</small>
-      </section>
+</section>
     </main>
   )
 }
